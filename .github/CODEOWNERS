@@ -1,0 +1,8 @@
+# Review routing. Handles or teams only, never email addresses.
+* @AKMofficial
+
+# The supply chain: workflows, action pins, and the CI gates.
+/.github/ @AKMofficial
+
+# The vulnerability policy and its disclosure timelines.
+/SECURITY.md @AKMofficial

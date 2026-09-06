@@ -1,0 +1,118 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1bdee22eaf7f66a3bfc0549cdd8e7476b439fcc1",
+  "after": "db2a22741b1a53082e055427d9e013a2c295b680",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/your-org/your-repo/compare/1bdee22eaf7f...db2a22741b1a",
+  "commits": [
+    {
+      "id": "398bb20883c46bfcbe5346980bfcc25bf7a0e7fe",
+      "tree_id": "ad2de937195c2de00e6a299296c12e97a8a62a00",
+      "distinct": false,
+      "message": "Already announced elsewhere (1)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/398bb20883c46bfcbe5346980bfcc25bf7a0e7fe",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "db2a22741b1a53082e055427d9e013a2c295b680",
+      "tree_id": "09b9e9f28517fa895209baf88415bda91e133c7a",
+      "distinct": false,
+      "message": "Already announced elsewhere (2)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/db2a22741b1a53082e055427d9e013a2c295b680",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "db2a22741b1a53082e055427d9e013a2c295b680",
+    "tree_id": "09b9e9f28517fa895209baf88415bda91e133c7a",
+    "distinct": false,
+    "message": "Already announced elsewhere (2)",
+    "timestamp": "2026-09-01T09:14:11Z",
+    "url": "https://github.com/your-org/your-repo/commit/db2a22741b1a53082e055427d9e013a2c295b680",
+    "author": {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "username": "jane-doe"
+    },
+    "committer": {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "username": "jane-doe"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "src/index.ts"
+    ]
+  },
+  "repository": {
+    "id": 5550001,
+    "node_id": "MDEwOlJlcG9zaXRvcnk1NTUwMDAx",
+    "name": "your-repo",
+    "full_name": "your-org/your-repo",
+    "private": true,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "id": 77,
+      "type": "Organization",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/your-org/your-repo",
+    "description": "Example repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/your-org/your-repo",
+    "default_branch": "main",
+    "visibility": "private"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane-doe@example.com"
+  },
+  "organization": {
+    "login": "your-org",
+    "id": 77
+  },
+  "sender": {
+    "login": "jane-doe",
+    "id": 1042,
+    "node_id": "MDQ6VXNlcjEwNDI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1042?v=4",
+    "html_url": "https://github.com/jane-doe",
+    "type": "User",
+    "site_admin": false
+  }
+}

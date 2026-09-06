@@ -1,0 +1,47 @@
+{
+  "ref": "refs/heads/<script>x</script>",
+  "before": "abc1234abc1234abc1234abc1234abc1234abc12",
+  "after": "def5678def5678def5678def5678def5678def56",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "compare": "https://github.com/your-org/your-repo/compare/abc1234...def5678",
+  "repository": {
+    "full_name": "your-org/your-repo",
+    "name": "<b>repo</b>",
+    "owner": {
+      "login": "your-org"
+    },
+    "private": false,
+    "html_url": "https://github.com/your-org/your-repo"
+  },
+  "sender": {
+    "login": "jane-doe",
+    "type": "User"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane@example.com"
+  },
+  "commits": [
+    {
+      "id": "def5678def5678def5678def5678def5678def56",
+      "message": "</td></tr><script>alert(1)</script>\n\n5 < 6 && 7 > 6, \"quoted\", 'single', A&B\n\u200b\u202ereversed\u202c bell \ud83d\udca5\u0007",
+      "url": "https://github.com/your-org/your-repo/commit/def5678def5678def5678def5678def5678def56",
+      "distinct": true,
+      "author": {
+        "name": "<img src=x onerror=alert(1)>",
+        "email": "evil@example.com",
+        "username": null
+      },
+      "added": [
+        "a.txt"
+      ],
+      "removed": [],
+      "modified": [
+        "b.txt"
+      ]
+    }
+  ],
+  "head_commit": null
+}

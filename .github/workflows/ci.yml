@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Default-deny at the top level. No job in this file opts into more.
+permissions:
+  contents: read
+
+# One run per ref. PR runs are superseded; main runs are not.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # commit-relay reads an env var literally named GITHUB_TOKEN. Actions does not
+  # inject one automatically, but many workflows map github.token into an env var
+  # of this exact name, and a stray .env does the same. Blank it here so no job or
+  # container can ever authenticate to api.github.com as this workflow.
+  GITHUB_TOKEN: ""
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # A stale worker-configuration.d.ts is a silently wrong Workers typecheck.
+      - name: Generated Worker types are current
+        run: pnpm types && git diff --exit-code -- worker-configuration.d.ts
+
+      - run: pnpm lint
+
+      # The dual typecheck is the ONLY mechanism keeping src/core/ platform-pure.
+      # Workers config carries no "node" types; Node config carries no runtime
+      # types from `wrangler types` (worker-configuration.d.ts).
+      # A stray `node:crypto` or `cloudflare:workers` import fails exactly one of these.
+      - name: Typecheck (Workers)
+        run: pnpm exec tsc -p tsconfig.workers.json --noEmit
+      - name: Typecheck (Node)
+        run: pnpm exec tsc -p tsconfig.node.json --noEmit
+      # Tests and scripts are in neither project above; this is the only thing
+      # that type-checks them.
+      - name: Typecheck (tests and scripts)
+        run: pnpm exec tsc -p tsconfig.tests.json --noEmit
+
+      - name: Test (workers pool)
+        run: pnpm test:workers -- --coverage
+      - name: Test (node pool)
+        run: pnpm test:node -- --coverage
+
+      # Portability canary: this fails if anything reaches for a Node built-in,
+      # because wrangler.jsonc does not enable nodejs_compat and never will.
+      - name: Worker bundles clean
+        run: pnpm build:workers
+
+  actions-pinned:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - name: Every third-party action is pinned to a 40-hex SHA
+        run: |
+          bad=$(grep -rEn '^\s*(-\s+)?uses:\s+[^@]+@' .github/workflows | grep -Ev '@[0-9a-f]{40}(\s|$)' || true)
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::unpinned action reference above"
+            exit 1
+          fi
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with: { fail-on-severity: high, deny-licenses: 'AGPL-3.0, SSPL-1.0' }
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { fetch-depth: 0, persist-credentials: false }
+      # gitleaks-action calls the GitHub API and writes a job summary, so it needs a
+      # token even though the workflow blanks GITHUB_TOKEN for every other step.
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env: { GITLEAKS_CONFIG: .gitleaks.toml, GITHUB_TOKEN: "${{ github.token }}" }
+
+  deps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Blocking, unlike Dependabot alerts, which are advisory only.
+      - run: pnpm audit --audit-level=high
+      # Two runtime dependencies, both with zero transitive tree (section 5.2).
+      - run: pnpm ls --prod --depth Infinity --json | node scripts/check-deps.mjs
+
+  placeholders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - run: ./scripts/check-placeholders.sh
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          push: false
+          load: true
+          tags: commit-relay:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: ./scripts/smoke.sh

@@ -1,0 +1,76 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "commit-relay",
+  "main": "src/worker.ts",
+
+  // PINNED DELIBERATELY, DO NOT BUMP PAST 2026-08-03.
+  // Cloudflare: "For compatibility dates of 2026-08-04 or later, Workers enables
+  // both nodejs_compat and nodejs_compat_v2 by default." This project keeps
+  // nodejs_compat OFF permanently as a portability canary (section 4.5), so the
+  // date stays below that threshold and compatibility_flags stays empty.
+  // https://developers.cloudflare.com/workers/runtime-apis/nodejs/
+  "compatibility_date": "2026-08-03",
+  "compatibility_flags": [],
+
+  "workers_dev": true,
+
+  // https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Workers Paid only. Free CPU is fixed at 10 ms and this key does nothing
+  // there. If a Free-plan deploy is rejected for this block, delete it.
+  // https://developers.cloudflare.com/workers/platform/limits/#cpu-time
+  "limits": {
+    "cpu_ms": 30000
+  },
+
+  "queues": {
+    "producers": [
+      { "binding": "COMMITS", "queue": "commit-relay-commits" }
+    ],
+    "consumers": [
+      {
+        "queue": "commit-relay-commits",
+
+        // MUST be 1. One message = one push = up to MAX_COMMITS_PER_PUSH (15)
+        // stats calls + 15 posts = 30 external subrequests, plus one retry
+        // round = 45, plus 1 of headroom for a rollup on an adjacent trigger
+        // and 4 in reserve = 50 (itemised in 12.3), against the Workers Free
+        // hard ceiling of 50 external subrequests per invocation. A capped
+        // push posts only the rollup and makes no GitHub calls, so the two
+        // never co-occur. Two pushes in one batch blows the ceiling.
+        // https://developers.cloudflare.com/workers/platform/limits/#subrequests
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+
+        // A free global rate limiter: one push processed at a time, account-wide.
+        "max_concurrency": 1,
+
+        // Default is 3; limit is 100.
+        // https://developers.cloudflare.com/queues/configuration/batching-retries/
+        "max_retries": 5,
+
+        // Without a DLQ, messages that exhaust max_retries are deleted permanently.
+        // https://developers.cloudflare.com/queues/configuration/dead-letter-queues/
+        "dead_letter_queue": "commit-relay-dlq"
+      }
+    ]
+  },
+
+  // Every binding arrives as a STRING. The config layer coerces (section 7).
+  //
+  // BEHAVIOUR KNOBS ONLY. This file is committed, so a public fork publishes
+  // whatever is here. No BASECAMP_* key of any kind belongs in "vars", not even
+  // a placeholder id - see 7.4.1. Basecamp config arrives entirely through
+  // `wrangler secret put BASECAMP_LINES_URL`, and CI fails the build if a
+  // BASECAMP_ key reappears in this block (18.6).
+  "vars": {
+    "BRANCHES": "**",
+    "MAX_COMMITS_PER_PUSH": "15",
+    "GITHUB_CONCURRENCY": "4",
+    "LOG_LEVEL": "info"
+  }
+}

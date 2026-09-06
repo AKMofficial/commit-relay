@@ -1,0 +1,54 @@
+# gitleaks configuration for commit-relay.
+#
+# The generic ruleset catches neither of the two credentials this project
+# actually handles, so both are declared here on top of it.
+
+title = "commit-relay"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "basecamp-chatbot-key"
+description = "Basecamp chatbot key (a bearer credential in a URL path segment)"
+# The key is the segment immediately after /integrations/. Matching the path
+# rather than a key name is what makes this fire inside a .json fixture, a
+# Markdown code block, or a log line, none of which have an assignment.
+regex = '''/integrations/([A-Za-z0-9_-]{16,64})/'''
+secretGroup = 1
+keywords = ["integrations"]
+
+[[rules]]
+id = "hex-64-secret-assignment"
+description = "64-hex value assigned to a *SECRET* key (webhook secret shape)"
+regex = '''(?i)[a-z0-9_]*secret[a-z0-9_]*["']?\s*[:=]\s*["']?([0-9a-f]{64})\b'''
+secretGroup = 1
+keywords = ["secret"]
+
+[allowlist]
+description = "Sanctioned placeholders and offline test fixtures"
+paths = [
+  # The test tree. Unit tests live beside the source they cover, so a `.test.ts`
+  # anywhere is test data; every credential in it is invented for an assertion.
+  '''(^|/)tests/''',
+  '''\.test\.ts$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)SPEC\.md$''',
+]
+regexes = [
+  # The published placeholder chatbot key and the endpoint template it sits in.
+  '''PLACEHOLDERKEY0123456789''',
+  '''\{ACCOUNT_ID\}''',
+  # The published placeholder webhook secret. Boot refuses it by denylist.
+  '''replace-me-with-openssl-rand-hex-32''',
+  # The one invented 64-hex value the docs and the schema's example share, so a
+  # reader recognises the shape `openssl rand -hex 32` produces. Nothing accepts it.
+  '''0f2b8c1d4a6e9f3b7c05d81a2e4f6b9c3d5a7e1f8b0c2d4a6e9f3b7c05d81a2e''',
+  # Sanctioned placeholder ids and identities.
+  '''your-org/your-repo''',
+  # This project's own published identity, in both the GitHub and GHCR casings.
+  '''(?i)AKMofficial/commit-relay''',
+  '''\b(1234567|2345678|7654321)\b''',
+  '''jane(-doe|@example\.com)''',
+  '''sam(-lee|@example\.com)''',
+]

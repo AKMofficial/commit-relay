@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "src/**/*.test.ts",
+    "scripts/**/*.ts",
+    "types/**/*.d.ts",
+    "worker-configuration.d.ts",
+    "vitest.config.ts",
+    "vitest.node.config.ts",
+    "vitest.workers.config.ts"
+  ]
+}

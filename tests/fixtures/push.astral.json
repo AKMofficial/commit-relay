@@ -1,0 +1,47 @@
+{
+  "ref": "refs/heads/main",
+  "before": "abc1234abc1234abc1234abc1234abc1234abc12",
+  "after": "def5678def5678def5678def5678def5678def56",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "compare": "https://github.com/your-org/your-repo/compare/abc1234...def5678",
+  "repository": {
+    "full_name": "your-org/your-repo",
+    "name": "your-repo",
+    "private": false,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "type": "Organization"
+    },
+    "html_url": "https://github.com/your-org/your-repo"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane@example.com"
+  },
+  "commits": [
+    {
+      "id": "def5678def5678def5678def5678def5678def56",
+      "message": "Ship the \ud83d\udca5 release\n\nCombining marks: e\u0301 a\u030a n\u0303, family: \ud83d\udc69\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66",
+      "url": "https://github.com/your-org/your-repo/commit/def5678def5678def5678def5678def5678def56",
+      "distinct": true,
+      "author": {
+        "name": "Jose\u0301 \ud83d\ude80 A\u030angstro\u0308m",
+        "email": "jose@example.com",
+        "username": null
+      },
+      "added": [
+        "a.txt"
+      ],
+      "removed": [],
+      "modified": []
+    }
+  ],
+  "head_commit": null,
+  "sender": {
+    "login": "jane-doe",
+    "type": "User"
+  }
+}

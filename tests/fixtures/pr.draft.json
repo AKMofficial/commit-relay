@@ -1,0 +1,37 @@
+{
+  "action": "opened",
+  "pull_request": {
+    "number": 42,
+    "title": "Add OAuth login flow",
+    "html_url": "https://github.com/your-org/your-repo/pull/42",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "merge_commit_sha": null,
+    "changed_files": 7,
+    "additions": 180,
+    "deletions": 24,
+    "head": {
+      "ref": "feat/login",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "base": {
+      "ref": "main"
+    },
+    "user": {
+      "login": "jane-doe"
+    }
+  },
+  "repository": {
+    "full_name": "your-org/your-repo",
+    "name": "your-repo",
+    "html_url": "https://github.com/your-org/your-repo",
+    "owner": {
+      "login": "your-org"
+    }
+  },
+  "sender": {
+    "login": "jane-doe",
+    "type": "User"
+  }
+}

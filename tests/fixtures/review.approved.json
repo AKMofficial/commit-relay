@@ -1,0 +1,42 @@
+{
+  "action": "submitted",
+  "review": {
+    "id": 900001,
+    "state": "approved",
+    "html_url": "https://github.com/your-org/your-repo/pull/42#pullrequestreview-900001",
+    "user": {
+      "login": "sam-lee"
+    }
+  },
+  "pull_request": {
+    "number": 42,
+    "title": "Add OAuth login flow",
+    "html_url": "https://github.com/your-org/your-repo/pull/42",
+    "state": "open",
+    "draft": false,
+    "merged": false,
+    "merge_commit_sha": null,
+    "head": {
+      "ref": "feat/login",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "base": {
+      "ref": "main"
+    },
+    "user": {
+      "login": "jane-doe"
+    }
+  },
+  "repository": {
+    "full_name": "your-org/your-repo",
+    "name": "your-repo",
+    "html_url": "https://github.com/your-org/your-repo",
+    "owner": {
+      "login": "your-org"
+    }
+  },
+  "sender": {
+    "login": "sam-lee",
+    "type": "User"
+  }
+}

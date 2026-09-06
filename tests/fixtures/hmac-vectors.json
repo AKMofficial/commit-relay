@@ -1,0 +1,74 @@
+{
+  "secret": "It's a Secret to Everybody",
+  "note": "Body is an array of byte values so no re-serialisation can corrupt it (15.2).",
+  "vectors": [
+    {
+      "note": "13 bytes, no trailing newline",
+      "body": [
+        72,
+        101,
+        108,
+        108,
+        111,
+        44,
+        32,
+        87,
+        111,
+        114,
+        108,
+        100,
+        33
+      ],
+      "signature": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"
+    },
+    {
+      "note": "14 bytes, one trailing newline",
+      "body": [
+        72,
+        101,
+        108,
+        108,
+        111,
+        44,
+        32,
+        87,
+        111,
+        114,
+        108,
+        100,
+        33,
+        10
+      ],
+      "signature": "sha256=8fde2e970f9163923fb1cb61bb945626ff2b4091d87e622ee3ad600160592325"
+    },
+    {
+      "note": "0 bytes",
+      "body": [],
+      "signature": "sha256=66a0c074deaa0f489ead6537e0d32f9a344b90bbeda705b6ed45ecd3b413fb40"
+    },
+    {
+      "note": "UTF-8, 18 bytes",
+      "body": [
+        123,
+        34,
+        109,
+        34,
+        58,
+        34,
+        99,
+        97,
+        102,
+        195,
+        169,
+        32,
+        240,
+        159,
+        154,
+        128,
+        34,
+        125
+      ],
+      "signature": "sha256=d0251c9bc314ae213b39c1bafa70fffc8d887413f329d6aecf60eda006d41e50"
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "ref": "refs/heads/release/2.0",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "b3a774fd14048cc735b645b28cf08c0e63da871f",
+  "created": true,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/your-org/your-repo/compare/000000000000...b3a774fd1404",
+  "commits": [
+    {
+      "id": "59b31d786956381da72b8c7889c9f9c053599815",
+      "tree_id": "30eadb613be4416a7c2cb15fb286252e598b6e9d",
+      "distinct": true,
+      "message": "Prepare release 2.0 (step 1)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/59b31d786956381da72b8c7889c9f9c053599815",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "ee35d31549100a430739e63dabe0087cf28440ce",
+      "tree_id": "676ce33746999d827f78a8deddd4b8f621c04f42",
+      "distinct": true,
+      "message": "Prepare release 2.0 (step 2)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/ee35d31549100a430739e63dabe0087cf28440ce",
+      "author": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "committer": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "fdf9057fef23afa36d6df1ab9f33ee2f46f11a5d",
+      "tree_id": "da09050cbcaac9598aafd3c417be9104873942c7",
+      "distinct": true,
+      "message": "Prepare release 2.0 (step 3)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/fdf9057fef23afa36d6df1ab9f33ee2f46f11a5d",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "b3a774fd14048cc735b645b28cf08c0e63da871f",
+      "tree_id": "3a028998f4ebb6a20ad759fa46701fcbd699856c",
+      "distinct": true,
+      "message": "Prepare release 2.0 (step 4)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/b3a774fd14048cc735b645b28cf08c0e63da871f",
+      "author": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "committer": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "b3a774fd14048cc735b645b28cf08c0e63da871f",
+    "tree_id": "3a028998f4ebb6a20ad759fa46701fcbd699856c",
+    "distinct": true,
+    "message": "Prepare release 2.0 (step 4)",
+    "timestamp": "2026-09-01T09:14:11Z",
+    "url": "https://github.com/your-org/your-repo/commit/b3a774fd14048cc735b645b28cf08c0e63da871f",
+    "author": {
+      "name": "Sam Lee",
+      "email": "sam@example.com",
+      "username": "sam-lee"
+    },
+    "committer": {
+      "name": "Sam Lee",
+      "email": "sam@example.com",
+      "username": "sam-lee"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "src/index.ts"
+    ]
+  },
+  "repository": {
+    "id": 5550001,
+    "node_id": "MDEwOlJlcG9zaXRvcnk1NTUwMDAx",
+    "name": "your-repo",
+    "full_name": "your-org/your-repo",
+    "private": true,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "id": 77,
+      "type": "Organization",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/your-org/your-repo",
+    "description": "Example repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/your-org/your-repo",
+    "default_branch": "main",
+    "visibility": "private"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane-doe@example.com"
+  },
+  "organization": {
+    "login": "your-org",
+    "id": 77
+  },
+  "sender": {
+    "login": "jane-doe",
+    "id": 1042,
+    "node_id": "MDQ6VXNlcjEwNDI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1042?v=4",
+    "html_url": "https://github.com/jane-doe",
+    "type": "User",
+    "site_admin": false
+  }
+}

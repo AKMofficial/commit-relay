@@ -1,0 +1,75 @@
+name: Bug report
+description: Something the service does that it should not, or does not do that it should.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag or the commit SHA you are running.
+      placeholder: "0.1.0, or the 40-character commit SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target
+      options:
+        - Cloudflare Workers
+        - Docker
+        - Railway
+        - Node from source
+    validations:
+      required: true
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node version
+      description: "`node --version`. Non-Workers targets only; leave blank on Workers."
+      placeholder: v24.12.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The service redacts by default, but check.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: payload
+    attributes:
+      label: Payload (sanitized)
+      description: Optional. The webhook payload with every id, name, and token removed.
+      render: json
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: I removed all tokens and secrets from everything pasted above.
+          required: true

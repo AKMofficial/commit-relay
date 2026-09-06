@@ -1,0 +1,5 @@
+* text=auto eol=lf
+tests/fixtures/** -text
+*.png binary
+docs/media/** binary
+docs/** linguist-documentation

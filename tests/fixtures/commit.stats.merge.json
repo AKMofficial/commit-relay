@@ -1,0 +1,53 @@
+{
+  "sha": "9999999999abcdef0123456789abcdef01234567",
+  "node_id": "C_scrubbed",
+  "html_url": "https://github.com/your-org/your-repo/commit/9999999999abcdef0123456789abcdef01234567",
+  "commit": {
+    "author": {
+      "name": "Jane Doe",
+      "email": "jane-doe@users.noreply.github.com",
+      "date": "2024-01-02T03:04:05Z"
+    },
+    "committer": {
+      "name": "Jane Doe",
+      "email": "jane-doe@users.noreply.github.com",
+      "date": "2024-01-02T03:04:05Z"
+    },
+    "message": "Merge pull request #7 from your-org/topic",
+    "comment_count": 0
+  },
+  "author": {
+    "login": "jane-doe",
+    "id": 1,
+    "type": "User"
+  },
+  "committer": {
+    "login": "jane-doe",
+    "id": 1,
+    "type": "User"
+  },
+  "parents": [
+    {
+      "sha": "89abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "sha": "1111111111111111111111111111111111111111"
+    }
+  ],
+  "stats": {
+    "additions": 42,
+    "deletions": 7,
+    "total": 49
+  },
+  "files": [
+    {
+      "sha": "fedcba9876543210fedcba9876543210fedcba98",
+      "filename": "src/github/stats.ts",
+      "status": "modified",
+      "additions": 42,
+      "deletions": 7,
+      "changes": 49,
+      "patch": "@@ -1,3 +1,3 @@\n-const MAX_BYTES = 0;\n+const MAX_BYTES = 1048576;\n"
+    }
+  ]
+}

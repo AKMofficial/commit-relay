@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2023"],
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "include": ["src/server.ts", "src/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["src/worker.ts", "src/**/*.test.ts", "src/queue/adapters/cf-queue.ts", "src/queue/adapters/cf-waituntil.ts"]
+}

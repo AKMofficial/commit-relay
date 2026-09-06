@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/AKMofficial/commit-relay/discussions
+    about: Ask about setup, rendering, or routing in Discussions.
+  - name: Report a security vulnerability
+    url: https://github.com/AKMofficial/commit-relay/security/advisories/new
+    about: Report privately. Never open a public issue for a vulnerability.
