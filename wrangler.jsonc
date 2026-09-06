@@ -20,12 +20,10 @@
     "head_sampling_rate": 1
   },
 
-  // Workers Paid only. Free CPU is fixed at 10 ms and this key does nothing
-  // there. If a Free-plan deploy is rejected for this block, delete it.
+  // No "limits" block: Free rejects `limits.cpu_ms` outright (API error
+  // 100328) rather than ignoring it, which would break the Deploy button for
+  // every Free account. On Paid, add `"limits": { "cpu_ms": 30000 }` yourself.
   // https://developers.cloudflare.com/workers/platform/limits/#cpu-time
-  "limits": {
-    "cpu_ms": 30000
-  },
 
   "queues": {
     "producers": [
