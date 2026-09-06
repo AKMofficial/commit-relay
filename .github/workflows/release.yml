@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+# Nothing at the workflow level. Every permission below is job-scoped.
+permissions: {}
+
+jobs:
+  verify-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify the tagged commit is reachable from main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+
+  release:
+    needs: verify-main
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # create the GitHub Release
+      packages: write # push to GHCR
+      id-token: write # OIDC for provenance signing
+      attestations: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+
+      # arm64 emulation. amd64 covers Railway and most VPSes; arm64 covers
+      # Raspberry Pi, Oracle Ampere's free tier, and Apple Silicon. No armv7.
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      # GHCR only. No external registry credential exists.
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # GHCR requires a lowercase image path, and github.repository preserves the
+      # owner's casing (AKMofficial). Lowercase it once and use it everywhere.
+      - id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-,format=short
+          flavor: latest=auto
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.description=Self-hosted webhook receiver that posts one Basecamp Campfire chat line per GitHub commit. Not affiliated with, endorsed by, or sponsored by 37signals, LLC. Basecamp® and Campfire® are trademarks of 37signals, LLC. This project is an independent, unofficial integration.
+
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+
+      # A Sigstore-signed, registry-discoverable SLSA provenance statement.
+      # subject-name carries no tag.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      # The release body is this version's CHANGELOG section, from the first
+      # `## [X.Y.Z]` heading to the next `## ` heading.
+      - name: Extract the CHANGELOG section for this tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { inside = 1; next }
+            inside && /^## / { exit }
+            inside { print }
+          ' CHANGELOG.md > release-body.md
+          if [ ! -s release-body.md ]; then
+            echo "::error::CHANGELOG.md has no section for ${version}"; exit 1
+          fi
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          body_path: release-body.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

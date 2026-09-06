@@ -1,0 +1,36 @@
+services:
+  commit-relay:
+    build: .
+    image: commit-relay:dev
+    env_file: .env
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    # docker stop defaults to a 10 s grace period, which is shorter than
+    # SHUTDOWN_DRAIN_MS (20 s): SIGKILL would land mid-drain and the queue
+    # would be lost silently on every `compose up` (16.2.3).
+    stop_grace_period: 30s
+    # Application files are root-owned and the process runs as node, so a
+    # compromised runtime cannot rewrite dist/. /tmp is the only writable path.
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

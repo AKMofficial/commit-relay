@@ -1,0 +1,18 @@
+node_modules/
+coverage/
+.wrangler/
+dist/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*config*.json
+!config.example.json
+!package.json
+!tsconfig*.json
+!vitest.config.ts
+
+# Local temp
+tmp/

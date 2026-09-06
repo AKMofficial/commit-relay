@@ -1,0 +1,35 @@
+{
+  "defaults": {
+    "branches": ["**"],
+    "target": {
+      "accountId": "1234567",
+      "chatbotKeyEnv": "BASECAMP_CHATBOT_KEY",
+      "bucketId": "2345678",
+      "chatId": "7654321"
+    }
+  },
+  "routes": [
+    {
+      "repo": "your-org/commit-relay",
+      "branches": ["main", "release/*"]
+    },
+    {
+      "repo": "your-org/infra-*",
+      "branches": ["**"],
+      "target": {
+        "bucketId": "2345678",
+        "chatId": "7654321",
+        "chatbotKeyEnv": "BASECAMP_CHATBOT_KEY_INFRA"
+      },
+      "skipMergeCommits": false,
+      "maxCommitsPerPush": 5
+    },
+    {
+      "repo": "other-org/**",
+      "branches": ["main"],
+      "tags": ["v*"],
+      "githubTokenEnv": "GITHUB_TOKEN_OTHERORG"
+    }
+  ],
+  "fallthrough": "ignore"
+}

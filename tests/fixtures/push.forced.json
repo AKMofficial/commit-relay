@@ -1,0 +1,118 @@
+{
+  "ref": "refs/heads/main",
+  "before": "420377da02f0d7e293b89e9a8d9d281c1625346f",
+  "after": "f3d04611f21b71992652048e971d6e3fa6c3a1d2",
+  "created": false,
+  "deleted": false,
+  "forced": true,
+  "base_ref": null,
+  "compare": "https://github.com/your-org/your-repo/compare/420377da02f0...f3d04611f21b",
+  "commits": [
+    {
+      "id": "c22d08257a645fbc3f1568f7bd2b7649ca193206",
+      "tree_id": "b1115a49de83e0ea4b3d20d85fe5c888bd51660f",
+      "distinct": true,
+      "message": "Rebased work (1)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/c22d08257a645fbc3f1568f7bd2b7649ca193206",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "f3d04611f21b71992652048e971d6e3fa6c3a1d2",
+      "tree_id": "2002d48f12617a4005b9d1645396be883de6f211",
+      "distinct": true,
+      "message": "Rebased work (2)",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/f3d04611f21b71992652048e971d6e3fa6c3a1d2",
+      "author": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "committer": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "f3d04611f21b71992652048e971d6e3fa6c3a1d2",
+    "tree_id": "2002d48f12617a4005b9d1645396be883de6f211",
+    "distinct": true,
+    "message": "Rebased work (2)",
+    "timestamp": "2026-09-01T09:14:11Z",
+    "url": "https://github.com/your-org/your-repo/commit/f3d04611f21b71992652048e971d6e3fa6c3a1d2",
+    "author": {
+      "name": "Sam Lee",
+      "email": "sam@example.com",
+      "username": "sam-lee"
+    },
+    "committer": {
+      "name": "Sam Lee",
+      "email": "sam@example.com",
+      "username": "sam-lee"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "src/index.ts"
+    ]
+  },
+  "repository": {
+    "id": 5550001,
+    "node_id": "MDEwOlJlcG9zaXRvcnk1NTUwMDAx",
+    "name": "your-repo",
+    "full_name": "your-org/your-repo",
+    "private": true,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "id": 77,
+      "type": "Organization",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/your-org/your-repo",
+    "description": "Example repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/your-org/your-repo",
+    "default_branch": "main",
+    "visibility": "private"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane-doe@example.com"
+  },
+  "organization": {
+    "login": "your-org",
+    "id": 77
+  },
+  "sender": {
+    "login": "jane-doe",
+    "id": 1042,
+    "node_id": "MDQ6VXNlcjEwNDI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1042?v=4",
+    "html_url": "https://github.com/jane-doe",
+    "type": "User",
+    "site_admin": false
+  }
+}

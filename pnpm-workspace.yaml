@@ -1,0 +1,12 @@
+allowBuilds:
+  esbuild: true
+  sharp: false
+  workerd: true
+
+# 7 days: a compromised release is normally yanked within hours (https://pnpm.io/supply-chain-security)
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: false
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
+strictDepBuilds: true
+engineStrict: true

@@ -1,0 +1,26 @@
+.git
+node_modules
+dist
+coverage
+.wrangler
+tmp
+worker-configuration.d.ts
+*.map
+tests
+docs
+*.md
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*config*.json
+!config.example.json
+# Docker's `*` matches inside a path segment, so `*config*.json` above also
+# excludes the tsconfigs the build stage COPYs. Re-include them by name.
+!tsconfig.json
+!tsconfig.node.json
+!tsconfig.workers.json
+*.pem
+.github
+.railway

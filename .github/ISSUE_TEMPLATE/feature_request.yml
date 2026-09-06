@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose a behaviour the service does not have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does the service get in the way?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: textarea
+    id: existing_config
+    attributes:
+      label: Can this be done with existing configuration?
+      description: >-
+        Check the configuration table and the routing document first. If a
+        combination of existing variables gets close, say which one and what it
+        does not cover. Nothing that varies between operators should need a code
+        change.
+    validations:
+      required: true

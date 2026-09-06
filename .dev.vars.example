@@ -1,0 +1,81 @@
+# commit-relay: Cloudflare Workers.
+#
+# Two jobs, one file (https://developers.cloudflare.com/workers/platform/deploy-buttons/):
+#   1. it declares the secrets a Deploy button prompts for, and
+#   2. copied to .dev.vars, it is the local secret store for `wrangler dev`.
+#
+# In production the secrets go in with `wrangler secret put NAME` and the
+# behaviour knobs live in wrangler.jsonc "vars". No BASECAMP_ value of any kind
+# belongs in that committed file (7.4.1).
+#
+# Every value here is obviously fake. The webhook secret is on the boot
+# denylist and will be refused.
+
+# Secret. The whole chatbot posting URL: one secret carrying all four values.
+BASECAMP_LINES_URL=https://3.basecampapi.com/1234567/integrations/PLACEHOLDERKEY0123456789/buckets/2345678/chats/7654321/lines.json
+BASECAMP_ACCOUNT_ID=1234567
+# Secret. A bearer credential in a URL path.
+BASECAMP_CHATBOT_KEY=PLACEHOLDERKEY0123456789
+BASECAMP_BUCKET_ID=2345678
+BASECAMP_CHAT_ID=7654321
+BASECAMP_API_BASE=https://3.basecampapi.com
+BASECAMP_TIMEOUT_MS=10000
+BASECAMP_MIN_INTERVAL_MS=250
+BASECAMP_MAX_SLEEP_MS=30000
+USER_AGENT=commit-relay (you@example.com)
+
+# Secret. REQUIRED. Minimum 32 characters: openssl rand -hex 32
+GITHUB_WEBHOOK_SECRET=replace-me-with-openssl-rand-hex-32
+# Secret. Skip if every relayed repo is public.
+GITHUB_TOKEN=
+GITHUB_API_BASE=https://api.github.com
+GITHUB_WEB_ORIGIN=https://github.com
+GITHUB_CONCURRENCY=4
+GITHUB_TIMEOUT_MS=8000
+GITHUB_STATS_MAX_BYTES=1048576
+FETCH_LINE_STATS=auto
+REQUIRE_LINE_STATS=false
+
+# The routing document as one JSON line. CONFIG_FILE is Node-only and is listed
+# here only so the variable set matches .env.example; Workers has no filesystem.
+ROUTES=
+CONFIG_FILE=
+BRANCHES=**
+TAGS=
+REPO_ALLOWLIST=
+PR_ACTIONS=opened,closed,reopened,ready_for_review
+PR_REVIEWS=true
+PR_SKIP_DRAFTS=true
+
+SKIP_FORCED_PUSHES=false
+SKIP_MERGE_COMMITS=true
+SKIP_NON_DISTINCT=true
+# Suggestion: dependabot[bot],renovate[bot]
+IGNORE_AUTHORS=
+
+MAX_COMMITS_PER_PUSH=15
+SUBREQUEST_BUDGET=50
+COMMIT_BODY_MAX_CHARS=2000
+CONTENT_MAX_BYTES=16384
+ENRICH_DEADLINE_MS=45000
+POST_RETRY_BUDGET_MS=20000
+RATELIMIT_WAIT_BUDGET_MS=60000
+# Node-only knobs; Workers has a real queue and ignores them.
+MAX_QUEUE_DEPTH=500
+MAX_QUEUE_BYTES=33554432
+DEDUP_MAX_ENTRIES=10000
+DEDUP_TTL_HOURS=72
+DROP_ALERT_WINDOW_MS=300000
+MAX_BODY_BYTES=26214400
+RATE_LIMIT_PER_MINUTE=120
+
+# Node-only: Workers takes the client address from CF-Connecting-IP.
+TRUSTED_PROXY_HOPS=0
+WEBHOOK_PATH=/webhook
+PORT=3000
+SHUTDOWN_DRAIN_MS=20000
+
+LOG_LEVEL=info
+LOG_PAYLOADS=false
+# Secret. Without it /health/detail 404s.
+HEALTH_TOKEN=

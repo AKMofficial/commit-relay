@@ -1,0 +1,97 @@
+{
+  "ref": "refs/heads/main",
+  "before": "6198fa4e9d0d3e4292551873b1af6ab3a4cd3dab",
+  "after": "ed9b62b041ea415f4a46b8508777e4403da55a0a",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/your-org/your-repo/compare/6198fa4e9d0d...ed9b62b041ea",
+  "commits": [
+    {
+      "id": "ed9b62b041ea415f4a46b8508777e4403da55a0a",
+      "tree_id": "1d6088a031f48b2a288bcc7150fc60afb9dfdc49",
+      "distinct": true,
+      "message": "Bump zod from 4.0.1 to 4.0.2",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/ed9b62b041ea415f4a46b8508777e4403da55a0a",
+      "author": {
+        "name": "dependabot[bot]",
+        "email": "support@github.com",
+        "username": "dependabot[bot]"
+      },
+      "committer": {
+        "name": "dependabot[bot]",
+        "email": "support@github.com",
+        "username": "dependabot[bot]"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "package.json",
+        "pnpm-lock.yaml"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "ed9b62b041ea415f4a46b8508777e4403da55a0a",
+    "tree_id": "1d6088a031f48b2a288bcc7150fc60afb9dfdc49",
+    "distinct": true,
+    "message": "Bump zod from 4.0.1 to 4.0.2",
+    "timestamp": "2026-09-01T09:14:11Z",
+    "url": "https://github.com/your-org/your-repo/commit/ed9b62b041ea415f4a46b8508777e4403da55a0a",
+    "author": {
+      "name": "dependabot[bot]",
+      "email": "support@github.com",
+      "username": "dependabot[bot]"
+    },
+    "committer": {
+      "name": "dependabot[bot]",
+      "email": "support@github.com",
+      "username": "dependabot[bot]"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "package.json",
+      "pnpm-lock.yaml"
+    ]
+  },
+  "repository": {
+    "id": 5550001,
+    "node_id": "MDEwOlJlcG9zaXRvcnk1NTUwMDAx",
+    "name": "your-repo",
+    "full_name": "your-org/your-repo",
+    "private": true,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "id": 77,
+      "type": "Organization",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/your-org/your-repo",
+    "description": "Example repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/your-org/your-repo",
+    "default_branch": "main",
+    "visibility": "private"
+  },
+  "pusher": {
+    "name": "dependabot[bot]",
+    "email": "dependabot[bot]@example.com"
+  },
+  "organization": {
+    "login": "your-org",
+    "id": 77
+  },
+  "sender": {
+    "login": "dependabot[bot]",
+    "id": 1042,
+    "node_id": "MDQ6VXNlcjEwNDI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1042?v=4",
+    "html_url": "https://github.com/dependabot[bot]",
+    "type": "Bot",
+    "site_admin": false
+  }
+}

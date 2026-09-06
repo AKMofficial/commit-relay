@@ -1,0 +1,79 @@
+name: Deployment help
+description: It returns 401, or nothing appears in the room.
+labels: [support]
+body:
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - GitHub shows 401 on the delivery
+        - GitHub shows 404 on the delivery
+        - GitHub shows 202 but nothing appears in the room
+        - A message appears but the Changes row is blank
+        - A message appears but the wrong room receives it
+        - The service will not start
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target
+      options:
+        - Cloudflare Workers
+        - Docker
+        - Railway
+        - Node from source
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The image tag or the commit SHA you are running.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: config_form
+    attributes:
+      label: How is Basecamp configured?
+      options:
+        - BASECAMP_LINES_URL (the whole posting URL)
+        - The four discrete ids
+    validations:
+      required: true
+
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Response body from the GitHub delivery
+      description: Redeliver the webhook and paste the response GitHub shows.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Service logs around that delivery
+      description: The service redacts by default, but check.
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Things the troubleshooting table asks first
+      options:
+        - label: The webhook secret in GitHub and the one in my environment were generated together, not retyped.
+          required: true
+        - label: The bucket id and the chat id are not swapped: the bucket is the project, the chat is the Campfire.
+          required: true
+        - label: The branch actually pushed to is matched by BRANCHES (default is main only).
+          required: true
+        - label: I removed all tokens and secrets from everything pasted above.
+          required: true

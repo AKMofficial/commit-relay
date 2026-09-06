@@ -1,0 +1,143 @@
+{
+  "ref": "refs/heads/main",
+  "before": "9f0bf0beeb657cadc0a9813ecb91abdb1ea6135c",
+  "after": "9e3f4bc7eb32334018f58dfc364efb034d5d879f",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/your-org/your-repo/compare/9f0bf0beeb65...9e3f4bc7eb32",
+  "commits": [
+    {
+      "id": "9268abd0a926b297f7d2180b19d2be452ef0964a",
+      "tree_id": "8fdf93d5a9c6297cd3f149e819a3577690fda4a7",
+      "distinct": true,
+      "message": "Add retry budget to the poster",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/9268abd0a926b297f7d2180b19d2be452ef0964a",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "e9a7788af56a3b7ac4ebf398b58a239c024fcd22",
+      "tree_id": "e587c92ec7de9695f1dd00ad96e8da87229ec41e",
+      "distinct": true,
+      "message": "Cover the retry budget with a test",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/e9a7788af56a3b7ac4ebf398b58a239c024fcd22",
+      "author": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "committer": {
+        "name": "Sam Lee",
+        "email": "sam@example.com",
+        "username": "sam-lee"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "id": "9e3f4bc7eb32334018f58dfc364efb034d5d879f",
+      "tree_id": "44e9aaa1b7ecdcca4e56d664c76deb85e82f36fe",
+      "distinct": true,
+      "message": "Merge pull request #42 from your-org/retry-budget\n\nAdd retry budget to the poster",
+      "timestamp": "2026-09-01T09:14:11Z",
+      "url": "https://github.com/your-org/your-repo/commit/9e3f4bc7eb32334018f58dfc364efb034d5d879f",
+      "author": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "committer": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "username": "jane-doe"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/basecamp/post.ts",
+        "src/basecamp/post.test.ts"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "9e3f4bc7eb32334018f58dfc364efb034d5d879f",
+    "tree_id": "44e9aaa1b7ecdcca4e56d664c76deb85e82f36fe",
+    "distinct": true,
+    "message": "Merge pull request #42 from your-org/retry-budget\n\nAdd retry budget to the poster",
+    "timestamp": "2026-09-01T09:14:11Z",
+    "url": "https://github.com/your-org/your-repo/commit/9e3f4bc7eb32334018f58dfc364efb034d5d879f",
+    "author": {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "username": "jane-doe"
+    },
+    "committer": {
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "username": "jane-doe"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "src/basecamp/post.ts",
+      "src/basecamp/post.test.ts"
+    ]
+  },
+  "repository": {
+    "id": 5550001,
+    "node_id": "MDEwOlJlcG9zaXRvcnk1NTUwMDAx",
+    "name": "your-repo",
+    "full_name": "your-org/your-repo",
+    "private": true,
+    "owner": {
+      "name": "your-org",
+      "login": "your-org",
+      "id": 77,
+      "type": "Organization",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/your-org/your-repo",
+    "description": "Example repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/your-org/your-repo",
+    "default_branch": "main",
+    "visibility": "private"
+  },
+  "pusher": {
+    "name": "jane-doe",
+    "email": "jane-doe@example.com"
+  },
+  "organization": {
+    "login": "your-org",
+    "id": 77
+  },
+  "sender": {
+    "login": "jane-doe",
+    "id": 1042,
+    "node_id": "MDQ6VXNlcjEwNDI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1042?v=4",
+    "html_url": "https://github.com/jane-doe",
+    "type": "User",
+    "site_admin": false
+  }
+}
