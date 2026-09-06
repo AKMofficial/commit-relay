@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build: typecheck + emit dist/ -------------------------------------
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
@@ -14,14 +14,14 @@ COPY types ./types
 RUN pnpm run typecheck:build && pnpm run build:node
 
 # ---- deps: production dependency tree only -----------------------------
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---- runtime -----------------------------------------------------------
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
