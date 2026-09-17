@@ -143,8 +143,8 @@ values come from: [Basecamp setup](./basecamp-setup.md).
 | `PR_SKIP_DRAFTS` | no | no | `true` | Suppress a draft pull request. `ready_for_review` is never suppressed by this: it is the moment the draft stops being one |
 | `MAX_COMMITS_PER_PUSH` | no | no | `15` | Per-push cap on individually rendered commits, range 1-100. Set by Cloudflare's free-plan subrequest ceiling, not by taste |
 | `SUBREQUEST_BUDGET` | no | no | `50` | Workers only: outbound calls allowed per invocation, range 0-10000000. Stats calls stop and posts defer to the queue before the platform's own `Too many subrequests` error fires. Ignored on Node; `0` disables |
-| `COMMIT_BODY_MAX_CHARS` | no | no | `2000` | Commit message clip, counted in **Unicode code points**, applied at ingest and re-applied in the renderer |
-| `CONTENT_MAX_BYTES` | no | no | `16384` | Ceiling on the assembled `content` string in UTF-8 bytes after escaping. **Basecamp documents no content limit; this is a self-imposed legibility budget** |
+| `COMMIT_BODY_MAX_CHARS` | no | no | `4000` | Commit message clip, counted in **Unicode code points**, applied at ingest and re-applied in the renderer |
+| `CONTENT_MAX_BYTES` | no | no | `32768` | Ceiling on the assembled `content` string in UTF-8 bytes after escaping. **Basecamp documents no content limit; this is a self-imposed legibility budget** |
 | `ENRICH_DEADLINE_MS` | no | no | `45000` | After this, a pending enrichment is aborted and force-promoted with `stats: null`. Boot rejects any value below `GITHUB_TIMEOUT_MS * 3 + 8000` |
 | `POST_RETRY_BUDGET_MS` | no | no | `20000` | Total 5xx retry wall-time per message. 429 sleeps do **not** draw on it |
 | `RATELIMIT_WAIT_BUDGET_MS` | no | no | `60000` | The separate budget 429 and `x-ratelimit` sleeps **do** draw on, per message. A 429 is the service pacing us correctly, not an error; when this budget is exhausted the message is re-queued rather than dropped |
@@ -227,7 +227,7 @@ release. `PORT` is deliberately unprefixed because platforms inject it.
 | `BASECAMP_MIN_INTERVAL_MS` | 250 | 50 requests per 10 seconds = 5 req/s; 250 ms gives 4 req/s, a 20% margin |
 | `BASECAMP_MAX_SLEEP_MS` | 30000 | `ctx.waitUntil` extends execution up to 30 seconds after the response, shared across all `waitUntil` calls |
 | `MAX_BODY_BYTES` | 26214400 | GitHub caps webhook payloads at 25 MB and does not deliver anything larger |
-| `CONTENT_MAX_BYTES` | 16384 | A Cloudflare Queue message is capped at 128 KB and the job carries the commit message; Basecamp documents no content limit at all |
+| `CONTENT_MAX_BYTES` | 32768 | A Cloudflare Queue message is capped at 128 KB and the job carries the commit message; Basecamp documents no content limit at all |
 | `ENRICH_DEADLINE_MS` | 45000 | `GITHUB_TIMEOUT_MS * 3 + 8000` = 32000 is the enricher's worst case; 45000 leaves margin |
 | `GITHUB_STATS_MAX_BYTES` | 1048576 | `GET /commits/{sha}` returns up to 300 `files[]` entries inline, each with a `patch` string; only `stats` is needed |
 | `DEDUP_TTL_HOURS` | 72 | GitHub's manual redelivery window is 3 days, and there is no automatic redelivery at all |
