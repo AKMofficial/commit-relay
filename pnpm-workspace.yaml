@@ -10,3 +10,7 @@ trustPolicy: no-downgrade
 blockExoticSubdeps: true
 strictDepBuilds: true
 engineStrict: true
+
+# GHSA-g89c-p67h-r497 (libheif), transitive via miniflare
+overrides:
+  sharp: ">=0.35.4"
