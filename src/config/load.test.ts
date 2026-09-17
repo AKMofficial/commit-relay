@@ -551,7 +551,7 @@ describe('the config_loaded summary', () => {
       lineStats: 'on',
       tokens: ['GITHUB_TOKEN'],
       maxCommitsPerPush: 15,
-      contentMaxBytes: 16_384,
+      contentMaxBytes: 32_768,
     });
     expect(JSON.stringify(summary)).not.toContain('chatbot-key-value');
   });

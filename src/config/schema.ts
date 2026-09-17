@@ -290,8 +290,8 @@ export const configObject = z.object({
   PR_SKIP_DRAFTS: boolVar(true),
   // Workers per-invocation subrequest ceiling (50 on Free). Node ignores it; 0 disables.
   SUBREQUEST_BUDGET: intVar(50, 0, 10_000_000),
-  COMMIT_BODY_MAX_CHARS: intVar(2_000, 1, 100_000),
-  CONTENT_MAX_BYTES: intVar(16_384, 512, 1_048_576),
+  COMMIT_BODY_MAX_CHARS: intVar(4_000, 1, 100_000),
+  CONTENT_MAX_BYTES: intVar(32_768, 512, 1_048_576),
   ENRICH_DEADLINE_MS: intVar(45_000, 1_000, MAX_MS),
   POST_RETRY_BUDGET_MS: intVar(20_000, 0, MAX_MS),
   RATELIMIT_WAIT_BUDGET_MS: intVar(60_000, 0, MAX_MS),
