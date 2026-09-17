@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ## [Unreleased]
 
+### Changed
+
+- Default `COMMIT_BODY_MAX_CHARS` raised from 2000 to 4000 and `CONTENT_MAX_BYTES`
+  from 16384 to 32768, so long commit messages are no longer clipped.
+
 ## [0.1.0] - 2026-09-06
 
 ### Added

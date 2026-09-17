@@ -179,8 +179,8 @@ Every variable below is in the zod schema in `src/config/schema.ts`, in `.env.ex
 | `IGNORE_AUTHORS` | no | *(empty)* | Globs matched against `sender.login`, `commit.author.username`, and `commit.author.email`, e.g. `dependabot[bot]` |
 | `MAX_COMMITS_PER_PUSH` | no | `15` | Per-push cap on individually rendered commits; above it, one rollup. Set by Cloudflare's free-plan 50-subrequest ceiling, not by taste |
 | `SUBREQUEST_BUDGET` | no | `50` | Workers only: outbound calls per invocation. Stats stop and posts defer before Cloudflare's `Too many subrequests` fires. Ignored on Node |
-| `COMMIT_BODY_MAX_CHARS` | no | `2000` | Commit message clip, in Unicode code points |
-| `CONTENT_MAX_BYTES` | no | `16384` | Ceiling on the assembled content string in UTF-8 bytes |
+| `COMMIT_BODY_MAX_CHARS` | no | `4000` | Commit message clip, in Unicode code points |
+| `CONTENT_MAX_BYTES` | no | `32768` | Ceiling on the assembled content string in UTF-8 bytes |
 | `ENRICH_DEADLINE_MS` | no | `45000` | After this a pending enrichment is force-promoted with `stats: null`. Must be at least `GITHUB_TIMEOUT_MS * 3 + 8000` |
 | `POST_RETRY_BUDGET_MS` | no | `20000` | Total 5xx retry wall-time per message |
 | `RATELIMIT_WAIT_BUDGET_MS` | no | `60000` | Separate budget that 429 and `x-ratelimit` sleeps draw on |

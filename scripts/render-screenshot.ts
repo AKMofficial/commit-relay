@@ -43,8 +43,8 @@ const HEIGHT = 900;
 const BG = { r: 0xf7, g: 0xf6, b: 0xf3 };
 
 const content = buildCommitTable(view, {
-  bodyMaxCodePoints: 2_000,
-  contentMaxBytes: 16_384,
+  bodyMaxCodePoints: 4_000,
+  contentMaxBytes: 32_768,
   webOrigin: 'https://github.com',
 });
 
