@@ -4,7 +4,7 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY tsconfig.json tsconfig.node.json ./
 COPY src ./src
@@ -17,7 +17,7 @@ RUN pnpm run typecheck:build && pnpm run build:node
 FROM node:24-alpine AS deps
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---- runtime -----------------------------------------------------------
