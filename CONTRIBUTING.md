@@ -93,13 +93,6 @@ credential comparisons, rendering, or outbound hosts.
 `ci:`, `build:`, `perf:`. A `!` or a `BREAKING CHANGE:` footer marks a major change, 
 see the public API surface table in `CHANGELOG.md` for what qualifies.
 
-**DCO sign-off, no CLA.** Every commit carries a `Signed-off-by` line certifying the
-[Developer Certificate of Origin](https://developercertificate.org/). Pass `-s` when
-you commit:
-
-```
-git commit -s -m "fix: reject a ref longer than 512 bytes before glob matching"
-```
 
 Add an entry to `CHANGELOG.md` under `[Unreleased]` in the same PR.
 
