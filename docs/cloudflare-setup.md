@@ -14,14 +14,14 @@ Related: [Basecamp setup](./basecamp-setup.md) · [Configuration reference](./co
 |---|---|
 | Cloudflare account | Free is enough to run this; see [Free vs Paid](#7-free-vs-paid-stated-plainly) for what Free costs you |
 | Node + pnpm locally | Only to run `wrangler`; the deployed Worker runs no Node |
-| The four Basecamp values | account id, chatbot key, bucket id, chat id: see [Basecamp setup](./basecamp-setup.md) |
+| The chatbot's posting URL | One URL carrying the account id, chatbot key, bucket id and chat id: see [Basecamp setup](./basecamp-setup.md) |
 | A webhook secret | `openssl rand -hex 32` |
 | A GitHub token | Mandatory in practice for private repos: unauthenticated commit lookups return 404 |
 
 ## 2. Step by step, from zero
 
 ```bash
-# 1. Get the code (fork first if you intend to use the deploy button)
+# 1. Get the code
 git clone https://github.com/AKMofficial/commit-relay.git
 cd commit-relay
 pnpm install
@@ -157,12 +157,19 @@ result below.
 | Where | How | Notes |
 |---|---|---|
 | Production | `npx wrangler secret put NAME` | Never in `vars`, never in the repo. `wrangler secret list` shows names only. |
+| Dashboard | **Workers & Pages** → your Worker → **Settings** → **Variables and Secrets** → **Add**, type **Secret** | The same as `wrangler secret put`, without a terminal. Use this to add a secret after a Deploy-button install, such as `GITHUB_TOKEN` or `HEALTH_TOKEN` |
 | Local dev | `.dev.vars` (gitignored) | `wrangler dev` loads it automatically. |
-| Deploy button | `.dev.vars.example` **or** `.env.example`, committed | Documented dotenv format, e.g. `GITHUB_WEBHOOK_SECRET=generate-with-openssl-rand-hex-32 # required` |
+| Deploy button | `.dev.vars.example`, committed | Lists only the three deploy secrets, because the setup page shows every line as a required field. `.env.example` keeps the full list for Node |
 | Rotation | `wrangler secret put` again, then update GitHub's webhook secret | The chatbot key cannot be rotated in Basecamp; you delete and recreate the chatbot: see [Basecamp setup](./basecamp-setup.md). |
 
 Setting `BASECAMP_LINES_URL` collapses all four Basecamp values into one secret. That is
 the recommended form; see [Configuration](./configuration.md#basecamp).
+
+Normal settings (`BRANCHES`, `TAGS`, `REPO_ALLOWLIST`, `ROUTES` and the rest) go in
+`wrangler.jsonc` under `vars`, not in the dashboard. Every deploy replaces the
+dashboard's plain-text variables with the `vars` from `wrangler.jsonc`; secrets are not
+touched. On a Deploy-button copy, edit `wrangler.jsonc` in your copy and commit to
+`main` to redeploy.
 
 ## 6. The Deploy to Cloudflare button
 
@@ -170,9 +177,9 @@ the recommended form; see [Configuration](./configuration.md#basecamp).
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AKMofficial/commit-relay)
 ```
 
-Cloudflare clones your repo into the visitor's own GitHub/GitLab account, shows one
-setup page for names and bindings, builds with Workers Builds, and provisions the
-resources the Wrangler config declares
+Cloudflare copies the repo into the visitor's own GitHub/GitLab account, shows one
+setup page for names, bindings and secrets, builds with Workers Builds, and provisions
+the resources the Wrangler config declares
 (<https://developers.cloudflare.com/workers/platform/deploy-buttons/>).
 
 | Requirement | Status |
@@ -181,18 +188,33 @@ resources the Wrangler config declares
 | Host must be `github.com` or `gitlab.com` | Documented; self-hosted GitHub/GitLab **not** supported |
 | Workers application, not Pages | Documented |
 | Monorepos | Documented as **not fully supported** |
-| Secrets prompt | Declare them in `.dev.vars.example` or `.env.example`, dotenv format. Whether the UI *requires* a value before deploying is **not documented** |
+| Secrets prompt | Read from `.dev.vars.example`. Verified: the form shows every line of that file and refuses a blank field, so the file lists only the three deploy secrets. A single space passes the form and the app reads it as unset |
 | Binding descriptions | Optional, in `package.json` |
 | Queues auto-provisioned | **Yes**, documented: Queues is on the auto-provisioned list, so a button user does not run `wrangler queues create` |
-| **Dead-letter queue auto-provisioned** | **NOT DOCUMENTED.** A DLQ is a string property on a consumer, not a binding, and no Cloudflare page covers it. Do not promise it works; verify the DLQ exists after your first deploy |
+| Dead-letter queue auto-provisioned | Verified: yes. `commit-relay-dlq` shows as "Inactive" in the dashboard because it has no consumer, which is by design |
 | Default resource names/ids in the repo | Required: *"please make sure your source repository includes default values for resource names, resource IDs and any other properties for each binding"* |
 | Build command | If no `deploy` script exists, Cloudflare preconfigures `npx wrangler deploy` |
 
-**[operator]** Test the button from a **fresh** Cloudflare account with a fork of a
-public repo, and write the answers down here:
+### Updating a Deploy-button copy
 
-- Did `.dev.vars.example` surface every secret in the setup UI?: **unverified**
-- Was the dead-letter queue auto-provisioned?: **unverified**
+The button creates a plain copy in your account, not a fork, so there is no "Sync fork"
+button and fixes made here never reach it by themselves. Every push to the copy's
+`main` redeploys it through Workers Builds, so updating is a pull and a push:
+
+```bash
+git clone https://github.com/<your-account>/commit-relay.git
+cd commit-relay
+git remote add upstream https://github.com/AKMofficial/commit-relay.git
+git pull upstream main
+git push origin main
+```
+
+For later updates, repeat the last two commands.
+
+The copy also inherits this repository's `.github/` folder. Delete
+`.github/dependabot.yml` and `.github/workflows/` in the copy: Cloudflare runs its own
+build, and otherwise Dependabot opens pull requests and CI spends Actions minutes on a
+repo that only deploys. You can make the copy private; Workers Builds keeps access.
 
 ## 7. Free vs Paid, stated plainly
 

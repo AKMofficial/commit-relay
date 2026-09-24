@@ -83,7 +83,7 @@ names only:
 ### Published secret literals are refused
 
 Boot refuses, for every secret-bearing field and regardless of `NODE_ENV`, any secret
-literal published in this repository, the example files and the README quickstart.
+literal published in this repository, in the example files or the docs.
 Copying the development block into production is the most common self-host mistake.
 
 ## Environment variables

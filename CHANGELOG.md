@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
   from 16384 to 32768, so long commit messages are no longer clipped.
 - `railway.json` sets `overlapSeconds` to 0, so a redeploy never runs two processes
   at once. A delivery during the switchover fails and can be redelivered.
+- The README is rewritten in plain language around what a new user needs: the three
+  values, the Deploy button, adding a repository, common settings, how it works, top
+  fixes and the FAQ. The full troubleshooting table moved to `docs/troubleshooting.md`;
+  the settings reference stays in `docs/configuration.md`.
+- `.dev.vars.example` lists only `BASECAMP_LINES_URL`, `GITHUB_WEBHOOK_SECRET` and
+  `GITHUB_TOKEN`, so the Deploy to Cloudflare setup page asks for three values instead
+  of every setting. `.env.example` still lists them all.
 
 ### Fixed
 
