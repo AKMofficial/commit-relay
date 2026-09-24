@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Changed
 
+- The link at the bottom of every message now sits after a blank line instead of
+  directly under the text.
 - Default `COMMIT_BODY_MAX_CHARS` raised from 2000 to 4000 and `CONTENT_MAX_BYTES`
   from 16384 to 32768, so long commit messages are no longer clipped.
 - `railway.json` sets `overlapSeconds` to 0, so a redeploy never runs two processes
@@ -23,6 +25,10 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Fixed
 
+- A force push now links to the latest commit instead of the comparison, and its Files
+  row reads N/A. After a history rewrite the old and new history share no commits, so
+  the comparison page was empty, the file count covered the whole repo, and the link
+  pointed at the old tip, which can still hold whatever the rewrite removed.
 - `/healthz` Basecamp health is tracked per room: the next successful post to a room
   clears its terminal status, so repairing one route no longer needs a restart, and
   one bad route no longer hides that the others recovered.

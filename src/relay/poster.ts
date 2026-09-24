@@ -266,6 +266,8 @@ export async function postRollupJob(
         fileCount: rollup.fileCount,
         authors: rollup.authors,
         compareUrl: push.compareUrl,
+        // webOrigin is a validated https origin and repoFullName two checked segments.
+        headCommitUrl: `${push.target.webOrigin}/${push.repoFullName}/commit/${push.after}`,
       },
       renderLimits(deps, push),
     );

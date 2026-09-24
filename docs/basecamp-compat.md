@@ -32,7 +32,7 @@ each row is load-bearing, not cosmetic.
 </td></tr>
 <tr><td colspan="2"><strong>Commit message</strong><br>
 </td></tr>
-<tr><td colspan="2">Fix crash when the config file is empty<br><a href="https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21">View the commit</a><br>
+<tr><td colspan="2">Fix crash when the config file is empty<br><br><a href="https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21">View the commit</a><br>
 </td></tr>
 </tbody>
 </table></div>
@@ -43,7 +43,7 @@ That HTML is the value of the `content` field, not the request body. Write the b
 (newlines escaped as `\n`):
 
 ```json
-{"content":"<div dir=\"ltr\"><table dir=\"ltr\" cellpadding=\"4\">\n<tbody>\n<tr><td nowrap><strong>Repository&nbsp;</strong></td><td>AKMofficial/commit-relay<br>\n</td></tr>\n<tr><td nowrap><strong>Author&nbsp;</strong></td><td>jane-doe<br>\n</td></tr>\n<tr><td nowrap><strong>Files&nbsp;</strong></td><td>3<br>\n</td></tr>\n<tr><td nowrap><strong>Changes&nbsp;</strong></td><td>+42 / -7<br>\n</td></tr>\n<tr><td colspan=\"2\"><strong>Commit message</strong><br>\n</td></tr>\n<tr><td colspan=\"2\">Fix crash when the config file is empty<br><a href=\"https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21\">View the commit</a><br>\n</td></tr>\n</tbody>\n</table></div>"}
+{"content":"<div dir=\"ltr\"><table dir=\"ltr\" cellpadding=\"4\">\n<tbody>\n<tr><td nowrap><strong>Repository&nbsp;</strong></td><td>AKMofficial/commit-relay<br>\n</td></tr>\n<tr><td nowrap><strong>Author&nbsp;</strong></td><td>jane-doe<br>\n</td></tr>\n<tr><td nowrap><strong>Files&nbsp;</strong></td><td>3<br>\n</td></tr>\n<tr><td nowrap><strong>Changes&nbsp;</strong></td><td>+42 / -7<br>\n</td></tr>\n<tr><td colspan=\"2\"><strong>Commit message</strong><br>\n</td></tr>\n<tr><td colspan=\"2\">Fix crash when the config file is empty<br><br><a href=\"https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21\">View the commit</a><br>\n</td></tr>\n</tbody>\n</table></div>"}
 ```
 
 Then post it, with the room's own four values substituted into the URL:
@@ -110,7 +110,7 @@ elements to block-level siblings outside it. Every tag and attribute below is on
 </tbody>
 </table>
 <strong>Commit message</strong><br>
-<blockquote>Fix crash when the config file is empty<br><br>Fixes #12<br><a href="https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21">View the commit</a><br>
+<blockquote>Fix crash when the config file is empty<br><br>Fixes #12<br><br><a href="https://github.com/AKMofficial/commit-relay/commit/9f2c1ab7e4d5c60318b2ee0a7f13c9d80a4b6e21">View the commit</a><br>
 </blockquote>
 </div>
 ```
