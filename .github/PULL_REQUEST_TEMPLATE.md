@@ -2,5 +2,5 @@
 
 Fixes #
 
-- [ ] New config is documented in the README table, `.env.example`, and `.dev.vars.example`.
+- [ ] New config is documented in `docs/configuration.md` and `.env.example`.
 - [ ] No secrets, no unscrubbed payloads, no screenshots from a live room.

@@ -77,6 +77,13 @@ describe('trimming and the empty check', () => {
     expect(result.missing).toContain('GITHUB_WEBHOOK_SECRET');
   });
 
+  // The Deploy to Cloudflare form refuses a blank field, so the docs tell a
+  // public-repos-only user to enter a single space for GITHUB_TOKEN.
+  it('treats a single-space optional secret as unset, not as an invalid value', () => {
+    const result = pass(base({ GITHUB_TOKEN: ' ' }));
+    expect(result.config.GITHUB_TOKEN).toBeUndefined();
+  });
+
   it('trims a pasted trailing newline off a good value', () => {
     const result = pass(base({ GITHUB_WEBHOOK_SECRET: `${SECRET}\n` }));
     expect(result.config.GITHUB_WEBHOOK_SECRET).toBe(SECRET);

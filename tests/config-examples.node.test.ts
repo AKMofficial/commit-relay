@@ -21,13 +21,27 @@ function dotenvValue(path: string, key: string): string {
   return line === undefined ? '' : line.slice(key.length + 1).trim();
 }
 
-describe.each(['.env.example', '.dev.vars.example'])('%s', (path) => {
+describe('.env.example', () => {
   it('carries exactly the schema keys, once each', () => {
-    const keys = dotenvKeys(path);
+    const keys = dotenvKeys('.env.example');
     expect([...keys].sort()).toEqual([...CONFIG_KEYS].sort());
     expect(new Set(keys).size).toBe(keys.length);
   });
+});
 
+describe('.dev.vars.example', () => {
+  // The Deploy button shows every line of this file as a required field, so it
+  // carries the three deployment secrets and nothing else.
+  it('carries exactly the three deploy secrets', () => {
+    expect(dotenvKeys('.dev.vars.example')).toEqual([
+      'BASECAMP_LINES_URL',
+      'GITHUB_WEBHOOK_SECRET',
+      'GITHUB_TOKEN',
+    ]);
+  });
+});
+
+describe.each(['.env.example', '.dev.vars.example'])('%s', (path) => {
   it('ships a webhook secret the loader refuses', () => {
     const literal = dotenvValue(path, 'GITHUB_WEBHOOK_SECRET');
     expect(PUBLISHED_SECRET_LITERALS).toContain(literal);
@@ -77,11 +91,13 @@ describe('docs/node-setup.md', () => {
   });
 });
 
-describe('README.md', () => {
-  it('documents exactly the schema keys in its Configuration table', () => {
-    const text = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-    const start = text.indexOf('\n## Configuration\n');
-    const end = text.indexOf('\n### ', start);
+describe('docs/configuration.md', () => {
+  it('documents exactly the schema keys in its Environment variables tables', () => {
+    const text = readFileSync(new URL('../docs/configuration.md', import.meta.url), 'utf8');
+    const start = text.indexOf('\n## Environment variables\n');
+    const end = text.indexOf('\n### Where the non-obvious defaults come from', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
     const table = text.slice(start, end);
     const documented = [...table.matchAll(/^\| `([A-Z0-9_]+)` \|/gm)].map((m) => m[1]);
     expect([...documented].sort()).toEqual([...CONFIG_KEYS].sort());

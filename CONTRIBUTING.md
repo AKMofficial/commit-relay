@@ -36,8 +36,35 @@ openssl rand -hex 32
 ```
 
 Every test runs fully offline with no real credentials: no Basecamp account and no
-GitHub repo required. If you want to watch a rendered message without a Basecamp
-account, run `node scripts/mock-basecamp.ts` and point `BASECAMP_API_BASE` at it.
+GitHub repo required.
+
+### Watch a rendered message, no accounts
+
+Put this in `.dev.vars` **before** starting `pnpm dev:workers`, because wrangler dev
+does not reload `.dev.vars` after a change:
+
+```bash
+GITHUB_WEBHOOK_SECRET=<output of openssl rand -hex 32>
+BASECAMP_API_BASE=http://127.0.0.1:9999
+BASECAMP_ACCOUNT_ID=1234567
+BASECAMP_CHATBOT_KEY=local-mock-key
+BASECAMP_BUCKET_ID=2345678
+BASECAMP_CHAT_ID=7654321
+```
+
+`BASECAMP_LINES_URL` must stay unset here: it only accepts Basecamp's own hosts, and
+when set it wins over `BASECAMP_API_BASE`. The mock accepts any chatbot key.
+
+Then, in three terminals:
+
+```bash
+node scripts/mock-basecamp.ts
+pnpm dev:workers
+GITHUB_WEBHOOK_SECRET=<the same value> pnpm send:fixture tests/fixtures/push.normal.json
+```
+
+The mock prints the HTML it was posted. Add `--html out.html` to the first command to
+write it to a file and open it in a browser; that is how `docs/media/message.png` is made.
 
 ## Gates
 
@@ -66,13 +93,6 @@ credential comparisons, rendering, or outbound hosts.
 `ci:`, `build:`, `perf:`. A `!` or a `BREAKING CHANGE:` footer marks a major change, 
 see the public API surface table in `CHANGELOG.md` for what qualifies.
 
-**DCO sign-off, no CLA.** Every commit carries a `Signed-off-by` line certifying the
-[Developer Certificate of Origin](https://developercertificate.org/). Pass `-s` when
-you commit:
-
-```
-git commit -s -m "fix: reject a ref longer than 512 bytes before glob matching"
-```
 
 Add an entry to `CHANGELOG.md` under `[Unreleased]` in the same PR.
 

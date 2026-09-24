@@ -30,7 +30,7 @@ configuration.
 the whole list.
 
 The knobs an operator actually changes on a Node host, beyond the minimum above
-(defaults from `src/config/schema.ts`; [Configuration](../README.md#configuration)
+(defaults from `src/config/schema.ts`; [Configuration](./configuration.md#environment-variables)
 has the full table):
 
 | Variable | Default | When you change it |
@@ -120,6 +120,13 @@ Set secrets with `fly secrets set`.
 
 ## Any Docker host
 
+In production, pin a digest (`ghcr.io/akmofficial/commit-relay@sha256:<digest>`)
+rather than a tag, and check the image's signed provenance:
+
+```bash
+gh attestation verify oci://ghcr.io/akmofficial/commit-relay:0.1.0 --repo AKMofficial/commit-relay
+```
+
 ```bash
 docker run -d --name commit-relay \
   -p 127.0.0.1:3000:3000 \
@@ -141,6 +148,13 @@ docker run -d --name commit-relay \
 `--read-only` plus root-owned application files means a compromised process cannot
 rewrite `dist/`. Put TLS in front of it (a reverse proxy or your platform's edge);
 GitHub webhooks should never be sent over plaintext.
+
+This applies to the container only. On Cloudflare Workers there is nothing to set,
+because Cloudflare reports the real client address itself.
+
+Behind a proxy, set `TRUSTED_PROXY_HOPS` to the number of proxies that append to
+`X-Forwarded-For`: `0` for a bare Docker host or VPS, `1` for Railway, Fly or Render,
+`2` with a CDN in front. The wrong value makes every client share one rate-limit bucket.
 
 `docker-compose.yml` in the repository root is the same thing with `env_file: .env`:
 `docker compose up -d`.
