@@ -99,10 +99,10 @@ export function renderMessageBody(raw: string, maxCodePoints: number): string {
     .replace(/(?:<br>){3,}/g, '<br><br>');
 }
 
-/** The message, then the link on a line of its own. Either alone when the
- *  other is empty, so an empty message never starts with a bare <br>. */
+/** The message, a blank line, then the link. Either alone when the other is
+ *  empty, so an empty message never starts with a bare <br>. */
 export const withLinkBelow = (bodyHtml: string, linkHtml: string): string =>
-  bodyHtml === '' || linkHtml === '' ? bodyHtml + linkHtml : `${bodyHtml}<br>${linkHtml}`;
+  bodyHtml === '' || linkHtml === '' ? bodyHtml + linkHtml : `${bodyHtml}<br><br>${linkHtml}`;
 
 export function anchor(url: string | null, text: string, origin: string): string {
   const safe = safeUrl(url, origin); // https only, origin must match; null otherwise

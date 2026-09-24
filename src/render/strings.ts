@@ -15,6 +15,7 @@ export const S = {
   authors: 'Authors',
   viewCommit: 'View the commit',
   viewComparison: 'View the full comparison',
+  viewLatestCommit: 'View the latest commit',
   viewPullRequest: 'View the pull request',
   pullRequest: 'Pull request',
   /** Separator in the Branch row of a pull request: head to base. */

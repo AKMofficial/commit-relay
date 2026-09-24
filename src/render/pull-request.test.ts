@@ -41,7 +41,7 @@ const GOLDEN_MERGED = doc(
   '</td></tr>',
   '<tr><td colspan="2"><strong>Pull request #42 merged</strong><br>',
   '</td></tr>',
-  '<tr><td colspan="2">Add OAuth login flow<br>' +
+  '<tr><td colspan="2">Add OAuth login flow<br><br>' +
     '<a href="https://github.com/your-org/your-repo/pull/42">View the pull request</a><br>',
   '</td></tr>',
   '</tbody>',

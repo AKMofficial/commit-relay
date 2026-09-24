@@ -99,6 +99,8 @@ export interface RollupView {
   fileCount: number | null;
   authors: string[];
   compareUrl: string | null;
+  /** The pushed head. A force push links here instead of the comparison. */
+  headCommitUrl: string | null;
 }
 
 /** Exhaustive by type: a new RollupKind will not compile without a string. */
@@ -109,14 +111,25 @@ const ROLLUP_LABEL: Record<RollupKind, string> = {
 };
 
 export function buildRollupTable(r: RollupView, lim: RenderLimits): string {
-  const link = anchor(r.compareUrl, S.viewComparison, lim.webOrigin);
+  // A force push has no meaningful before...after: after a history rewrite the
+  // comparison shares no commits (GitHub shows "no common ancestor"), commits[]
+  // lists the whole new history, and the old tip may hold what the rewrite purged.
+  // The webhook carries no parent SHAs to tell a rewrite from a rebase, so every
+  // force push links the new head and reports no file count.
+  const forced = r.kind === 'forced';
+  const link = (
+    forced
+      ? anchor(r.headCommitUrl, S.viewLatestCommit, lim.webOrigin)
+      : anchor(r.compareUrl, S.viewComparison, lim.webOrigin)
+  ).trim();
+  const fileCount = forced ? null : r.fileCount;
 
   // Changes is always N/A here: the compare endpoint's commits[] carries
   // no per-commit stats, and fetching them is the subrequest cost the cap avoids.
   const rows =
     pair(S.repository, plain(r.repoFullName)) +
     pair(refLabel(r.refKind), plain(r.refName)) +
-    pair(S.files, r.fileCount === null ? UNAVAILABLE : `${r.fileCount}`) +
+    pair(S.files, fileCount === null ? UNAVAILABLE : `${fileCount}`) +
     pair(S.changes, UNAVAILABLE);
 
   const distinctAuthors = [...new Set(r.authors.map((name) => plain(name)))];
@@ -125,12 +138,11 @@ export function buildRollupTable(r: RollupView, lim: RenderLimits): string {
       ? distinctAuthors.join(', ')
       : `${distinctAuthors.slice(0, 5).join(', ')}, +${distinctAuthors.length - 5} more`;
 
-  let footer =
-    `${S.commitsNotShown}<br>${S.authors}: ${authors}<br>${link.trim()}`;
+  let footer = withLinkBelow(`${S.commitsNotShown}<br>${S.authors}: ${authors}`, link);
   let html = assembleDocument(
     rows,
-    // The only per-kind difference: cap, branch create, and force push share
-    // every other row. No free-text label ever reaches the renderer.
+    // Besides the force-push link and Files row above, the only per-kind
+    // difference. No free-text label ever reaches the renderer.
     ROLLUP_LABEL[r.kind],
     // No count of any kind: nothing posted individually, and commits[] is capped at
     // 2048 with an oversized payload never delivered, so any figure here is a floor.
@@ -138,7 +150,7 @@ export function buildRollupTable(r: RollupView, lim: RenderLimits): string {
   );
 
   if (!fitsContent(html, lim.contentMaxBytes)) {
-    footer = `${S.commitsNotShown}<br>${link.trim()}`;
+    footer = withLinkBelow(S.commitsNotShown, link);
     html = assembleDocument(rows, ROLLUP_LABEL[r.kind], footer);
   }
 

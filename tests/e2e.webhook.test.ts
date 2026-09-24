@@ -57,7 +57,7 @@ interface CommitTable {
 
 /** Every commit message ends with the one link in the table, to the commit. */
 const viewCommit = (sha: string): string =>
-  `<br><a href="https://github.com/your-org/your-repo/commit/${sha}">View the commit</a>`;
+  `<br><br><a href="https://github.com/your-org/your-repo/commit/${sha}">View the commit</a>`;
 
 function commitTable(v: CommitTable): string {
   return document_(
@@ -77,6 +77,7 @@ interface RollupTable {
   authors: string;
   label: string;
   compare: string;
+  linkText?: string;
 }
 
 function rollupTable(v: RollupTable): string {
@@ -88,7 +89,7 @@ function rollupTable(v: RollupTable): string {
     v.label,
     'Individual commits are not shown for this push.<br>Authors: ' +
       v.authors +
-      `<br><a href="${v.compare}">View the full comparison</a>`,
+      `<br><br><a href="${v.compare}">${v.linkText ?? 'View the full comparison'}</a>`,
   );
 }
 
@@ -122,7 +123,7 @@ describe('push.normal.json, 3 commits on an allowed branch', () => {
         '</td></tr>\n' +
         '<tr><td colspan="2"><strong>Commit message</strong><br>\n' +
         '</td></tr>\n' +
-        '<tr><td colspan="2">Add the changelog entry for 1.4.0<br>' +
+        '<tr><td colspan="2">Add the changelog entry for 1.4.0<br><br>' +
         '<a href="https://github.com/your-org/your-repo/commit/0b1c2d3e4f50617283940a1b2c3d4e5f60718293">' +
         'View the commit</a><br>\n' +
         '</td></tr>\n' +
@@ -222,10 +223,12 @@ describe('the rollup fixtures', () => {
     expect(r.basecamp.contents()[0]).toBe(
       rollupTable({
         branch: 'main',
-        files: '1',
+        files: 'N/A',
         authors: 'jane-doe, sam-lee',
         label: 'Force push',
-        compare: 'https://github.com/your-org/your-repo/compare/420377da02f0...f3d04611f21b',
+        compare:
+          'https://github.com/your-org/your-repo/commit/f3d04611f21b71992652048e971d6e3fa6c3a1d2',
+        linkText: 'View the latest commit',
       }),
     );
   });
@@ -399,7 +402,7 @@ describe('pull request events', () => {
     );
 
   const VIEW_PR =
-    '<br><a href="https://github.com/your-org/your-repo/pull/42">View the pull request</a>';
+    '<br><br><a href="https://github.com/your-org/your-repo/pull/42">View the pull request</a>';
 
   it('posts one table when a pull request is merged, and calls no GitHub API', async () => {
     const r = relay();
@@ -446,7 +449,7 @@ describe('pull request events', () => {
         files: 'N/A',
         changes: 'N/A',
         body:
-          'Add OAuth login flow<br><a href="https://github.com/your-org/your-repo/pull/42' +
+          'Add OAuth login flow<br><br><a href="https://github.com/your-org/your-repo/pull/42' +
           '#pullrequestreview-900001">View the pull request</a>',
       }),
     );

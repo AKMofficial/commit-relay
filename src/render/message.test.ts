@@ -54,13 +54,14 @@ const rollup: RollupView = {
   fileCount: 48,
   authors: ['jane-doe', 'sam-lee'],
   compareUrl: 'https://github.com/your-org/your-repo/compare/abc1234...def5678',
+  headCommitUrl: 'https://github.com/your-org/your-repo/commit/def5678',
 };
 
 const doc = (...lines: string[]): string => lines.join('\n');
 
 /** The one link every commit message ends with. */
 const VIEW_COMMIT =
-  '<br><a href="https://github.com/your-org/your-repo/commit/abc1234">View the commit</a>';
+  '<br><br><a href="https://github.com/your-org/your-repo/commit/abc1234">View the commit</a>';
 
 const cp = (...codes: number[]): string => String.fromCodePoint(...codes);
 
@@ -105,7 +106,7 @@ const GOLDEN_ROLLUP_CAP = doc(
   '<tr><td colspan="2"><strong>More commits in this push</strong><br>',
   '</td></tr>',
   '<tr><td colspan="2">Individual commits are not shown for this push.<br>' +
-    'Authors: jane-doe, sam-lee<br>' +
+    'Authors: jane-doe, sam-lee<br><br>' +
     '<a href="https://github.com/your-org/your-repo/compare/abc1234...def5678">' +
     'View the full comparison</a><br>',
   '</td></tr>',
@@ -203,7 +204,7 @@ describe('buildCommitTable golden output', () => {
 
   it('renders an empty message as the commit link alone, never a missing row', () => {
     const html = buildCommitTable({ ...commit, message: '' }, lim);
-    expect(html).toContain(doc(`<tr><td colspan="2">${VIEW_COMMIT.slice(4)}<br>`, '</td></tr>'));
+    expect(html).toContain(doc(`<tr><td colspan="2">${VIEW_COMMIT.slice(8)}<br>`, '</td></tr>'));
     expect(html.match(/<tr>/g)).toHaveLength(7);
 
     const noUrl = buildCommitTable({ ...commit, message: '', commitUrl: null }, lim);
@@ -349,6 +350,7 @@ describe('the byte ceiling', () => {
           fileCount: 12,
           authors: ['a', 'b', 'c', 'd', 'e', 'f'],
           compareUrl: 'https://github.com/your-org/your-repo/compare/a...b',
+          headCommitUrl: 'https://github.com/your-org/your-repo/commit/b',
         },
         limLocal,
       );
@@ -364,7 +366,7 @@ describe('the byte ceiling', () => {
 
     expect(short).toContain(
       doc(
-        '<tr><td colspan="2">Fix crash when the config file is empty<br>' +
+        '<tr><td colspan="2">Fix crash when the config file is empty<br><br>' +
           '<a href="https://github.com/your-org/your-repo/commit/abc1234">' +
           'View the commit</a><br>',
         '</td></tr>',
@@ -376,7 +378,7 @@ describe('the byte ceiling', () => {
   it('hard-clips a 400 KB single-line subject rather than emitting it', () => {
     const message = 'z& '.repeat(140_000);
     const empty = buildCommitTable({ ...commit, message: '' }, lim);
-    const link = `<br><a href="${commit.commitUrl ?? ''}">${S.viewCommit}</a>`;
+    const link = `<br><br><a href="${commit.commitUrl ?? ''}">${S.viewCommit}</a>`;
     const tight = { ...lim, contentMaxBytes: contentBytes(empty) + contentBytes(link) + 200 };
     const html = buildCommitTable({ ...commit, message }, tight);
 
@@ -416,7 +418,7 @@ describe('hrefs', () => {
       expect(html).not.toContain('<a ');
       expect(html).not.toContain('href');
       // The rejected URL still takes the link's own line, as inert text.
-      expect(html).toContain(doc(`<tr><td colspan="2">Subject<br>${asText}<br>`, '</td></tr>'));
+      expect(html).toContain(doc(`<tr><td colspan="2">Subject<br><br>${asText}<br>`, '</td></tr>'));
     }
 
     const unlinked = buildCommitTable({ ...commit, message, commitUrl: null }, lim);
@@ -435,13 +437,13 @@ describe('hrefs', () => {
     );
     expect(html).not.toContain('<a ');
     expect(html).not.toContain('href');
-    expect(html).toContain('Authors: jane-doe, sam-lee<br>https://evil.example/compare/a...b<br>');
+    expect(html).toContain('Authors: jane-doe, sam-lee<br><br>https://evil.example/compare/a...b<br>');
   });
 
   it('omits the link slot entirely when there is no compare URL', () => {
     const html = buildRollupTable({ ...rollup, compareUrl: null }, lim);
     expect(html).not.toContain('<a ');
-    expect(html).toContain('Authors: jane-doe, sam-lee<br><br>');
+    expect(html).toContain('Authors: jane-doe, sam-lee<br>\n');
   });
 });
 
@@ -450,14 +452,13 @@ describe('buildRollupTable', () => {
     expect(buildRollupTable(rollup, lim)).toBe(GOLDEN_ROLLUP_CAP);
   });
 
-  it('differs between the three kinds in the row-5 label and nothing else', () => {
-    const labels: Record<RollupKind, string> = {
+  it('differs between cap and branch create in the row-5 label and nothing else', () => {
+    const labels: Record<Exclude<RollupKind, 'forced'>, string> = {
       cap: S.rollupCap,
       branch_create: S.rollupBranchCreate,
-      forced: S.rollupForced,
     };
 
-    for (const kind of ['cap', 'branch_create', 'forced'] as const) {
+    for (const kind of ['cap', 'branch_create'] as const) {
       const html = buildRollupTable({ ...rollup, kind }, lim);
       expect(html).toBe(
         GOLDEN_ROLLUP_CAP.replace(
@@ -467,6 +468,18 @@ describe('buildRollupTable', () => {
       );
       expect(html).toContain(`<tr><td colspan="2"><strong>${labels[kind]}</strong><br>`);
     }
+  });
+
+  it('links a force push to the new head and reports no file count', () => {
+    const html = buildRollupTable({ ...rollup, kind: 'forced' }, lim);
+    expect(html).toBe(
+      GOLDEN_ROLLUP_CAP.replace(`<strong>${S.rollupCap}</strong>`, `<strong>${S.rollupForced}</strong>`)
+        .replace('<td>48<br>', '<td>N/A<br>')
+        .replace(
+          '<a href="https://github.com/your-org/your-repo/compare/abc1234...def5678">View the full comparison</a>',
+          '<a href="https://github.com/your-org/your-repo/commit/def5678">View the latest commit</a>',
+        ),
+    );
   });
 
   it('renders Changes as N/A and carries no remainder count', () => {
