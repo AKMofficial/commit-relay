@@ -24,3 +24,5 @@ docs
 *.pem
 .github
 .railway
+.npmrc
+.yarnrc.yml

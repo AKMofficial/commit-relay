@@ -121,6 +121,41 @@ describe('the request', () => {
     }
   });
 
+  it('never follows a redirect, and a 3xx is fatal', async () => {
+    const h = harness([() => res(302, { location: 'https://evil.invalid/' })]);
+    const out = await postLine(html, TARGET, CFG, h.deps);
+    expect(h.inits[0]?.redirect).toBe('manual');
+    expect(h.urls).toHaveLength(1);
+    expect(out).toMatchObject({ ok: false, fatal: true, status: 302, reason: 'unexpected_status' });
+  });
+
+  it('percent-encodes the chatbot key in the path', () => {
+    expect(linesUrl({ ...TARGET, chatbotKey: 'a/b?c#d' })).toContain('/integrations/a%2Fb%3Fc%23d/buckets/');
+  });
+
+  it('keeps the status outcome when the body fails mid-read', async () => {
+    const broken = (): Response => new Response(new ReadableStream({
+      pull(c) {
+        c.error(new Error('reset'));
+      },
+    }), { status: 201 });
+    const h = harness([broken]);
+    await expect(postLine(html, TARGET, CFG, h.deps)).resolves.toMatchObject({ ok: true, status: 201 });
+  });
+
+  it('stops draining at a small cap instead of buffering a huge body', async () => {
+    let pulled = 0;
+    const endless = (): Response => new Response(new ReadableStream({
+      pull(c) {
+        pulled += 1;
+        c.enqueue(new Uint8Array(1024));
+      },
+    }), { status: 201 });
+    const h = harness([endless]);
+    await expect(postLine(html, TARGET, CFG, h.deps)).resolves.toMatchObject({ ok: true });
+    expect(pulled).toBeLessThan(16);
+  });
+
   it('drains the body on 201 and on an error status', async () => {
     for (const status of [201, 422, 500]) {
       const h = harness([() => res(status)]);

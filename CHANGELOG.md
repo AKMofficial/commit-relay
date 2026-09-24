@@ -11,6 +11,59 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 - Default `COMMIT_BODY_MAX_CHARS` raised from 2000 to 4000 and `CONTENT_MAX_BYTES`
   from 16384 to 32768, so long commit messages are no longer clipped.
+- `railway.json` sets `overlapSeconds` to 0, so a redeploy never runs two processes
+  at once. A delivery during the switchover fails and can be redelivered.
+
+### Fixed
+
+- `/healthz` Basecamp health is tracked per room: the next successful post to a room
+  clears its terminal status, so repairing one route no longer needs a restart, and
+  one bad route no longer hides that the others recovered.
+- A delivery that passes HMAC now gets its per-IP rate-limit token back as well, so
+  `RATE_LIMIT_PER_MINUTE` only charges requests that fail verification. A busy org
+  hook could otherwise 429 genuine deliveries from one GitHub sender address.
+- On Workers, a failed re-enqueue of a deferred job logs `error queue_resend_failed` and
+  retries the message instead of throwing unacked.
+- On Node, a crash logs `jobs_lost` with the queued shas and delivery ids, as a normal
+  shutdown already did.
+- Docs corrected where they contradicted the code: the `BRANCHES` default (`**`, not
+  `main`), queue overflow (503, not 202), the Node wait-budget behaviour, pull request
+  support in the FAQ, the `:0.1` quickstart tag, six invariant rules, and where
+  `USE_COLSPAN` lives.
+
+### Security
+
+- New config validation errors, which can stop a previously booting config: a chatbot
+  key (flat, decoded from `BASECAMP_LINES_URL`, inline, or via `chatbotKeyEnv`) must
+  match `[A-Za-z0-9_-]+`; a `REPO_ALLOWLIST` that is set but lists nothing (such as
+  `,`) is rejected, while unset still allows every repo; a route that an earlier route
+  always shadows is rejected, naming both; a route's `webhookSecretEnv` value is capped
+  at 1024 characters; a route's `githubApiBase` is trimmed and may not carry
+  credentials.
+- The per-IP webhook rate limit now keys IPv6 clients by their `/64` prefix, so one
+  host rotating addresses in its prefix shares one bucket. IPv4 is unchanged.
+- Trusted private peers for forwarded-header handling now include `100.64.0.0/10`,
+  `169.254.0.0/16` and `fe80::/10`; the `fc00::/7` check is exact.
+- Outbound calls to Basecamp and GitHub no longer follow redirects. A 3xx from
+  Basecamp is a fatal post; from GitHub it yields empty line stats, not retried.
+- The Basecamp response body is read up to 4 KiB, and a body error after a 201 no
+  longer causes a duplicate post.
+- `x-ratelimit` pacing between posts in one push draws on
+  `RATELIMIT_WAIT_BUDGET_MS`; once spent, only the static interval applies.
+- With invalid config, `/health/detail` refuses a `HEALTH_TOKEN` that fails the
+  16-256 printable-ASCII rule.
+- `rate_limited`, `webhook_bad_content_type`, `xff_hops_mismatch` and the new
+  `health_detail_unauthorized` log lines are throttled to one per event per 60 s.
+- Queued push jobs with `resumeAtSeq` beyond the commit count are rejected.
+- A route's `webhookSecretEnv` holding the same value as `GITHUB_WEBHOOK_SECRET` or
+  another route's secret is a validation error, since one signature would verify for both.
+- Delivery-id dedup is scoped to the repository, so a sender on one route cannot mark
+  another route's delivery completed.
+- On Workers, queue messages consumed while the config is invalid are retried every
+  5 minutes and reach the DLQ, instead of being acked and lost.
+- A 401 from GitHub on a request that carried a token logs `error github_token_rejected`,
+  once per repo per hour.
+- gitleaks now scans test files; only the invented test credentials are allowlisted.
 
 ## [0.1.0] - 2026-09-06
 

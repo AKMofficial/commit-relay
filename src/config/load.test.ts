@@ -601,3 +601,135 @@ describe('the config_loaded summary', () => {
     );
   });
 });
+
+describe('security review hardening', () => {
+  const doc = (routes: unknown[]) => JSON.stringify({ routes });
+
+  it('rejects a route shadowed by an earlier glob, naming both routes', () => {
+    const cases: Array<[string, string]> = [
+      ['acme/*', 'acme/payments'],
+      ['**', 'acme/*'],
+      ['*/*', 'x/y'],
+      ['ACME/*', 'acme/pay*'],
+      ['acme/pay*', 'acme/payments'],
+    ];
+    for (const [earlier, later] of cases) {
+      const text = formatProblems(fail(base({ ROUTES: doc([{ repo: earlier }, { repo: later }]) })).problems);
+      expect(text).toContain('ROUTES[1].repo');
+      expect(text).toContain('ROUTES[0].repo');
+      expect(text).toContain(later);
+    }
+  });
+
+  it('does not flag routes whose coverage is uncertain or absent', () => {
+    pass(base({ ROUTES: doc([{ repo: 'acme/payments' }, { repo: 'acme/*' }]) }));
+    pass(base({ ROUTES: doc([{ repo: 'acme/a*' }, { repo: 'acme/*b' }]) }));
+    pass(base({ ROUTES: doc([{ repo: 'acme/*' }, { repo: 'other/x' }]) }));
+  });
+
+  it('rejects chatbot keys outside the URL-safe charset without echoing them', () => {
+    for (const key of ['abc/../../other', 'abcdefgh?x=1', 'abcd%2Fefgh']) {
+      const flat = formatProblems(fail(base({ BASECAMP_CHATBOT_KEY: key })).problems);
+      expect(flat).toContain('BASECAMP_CHATBOT_KEY');
+      expect(flat).not.toContain(key);
+      const inline = formatProblems(
+        fail(base({ ROUTES: doc([{ repo: 'a/b', target: { chatbotKey: key } }]) })).problems,
+      );
+      expect(inline).toContain('must contain only letters');
+      expect(inline).not.toContain(key);
+      const named = formatProblems(
+        fail(
+          base({
+            BASECAMP_CHATBOT_KEY_TEAM: key,
+            ROUTES: doc([{ repo: 'a/b', target: { chatbotKeyEnv: 'BASECAMP_CHATBOT_KEY_TEAM' } }]),
+          }),
+        ).problems,
+      );
+      expect(named).toContain('BASECAMP_CHATBOT_KEY_TEAM');
+      expect(named).not.toContain(key);
+    }
+  });
+
+  it('rejects credentials in a route githubApiBase and trims it', () => {
+    const text = formatProblems(
+      fail(
+        base({
+          GITHUB_TOKEN_GHE: 'ghe-token',
+          ROUTES: doc([
+            { repo: 'a/b', githubApiBase: 'https://user:pass@example.com/api/v3', githubTokenEnv: 'GITHUB_TOKEN_GHE' },
+          ]),
+        }),
+      ).problems,
+    );
+    expect(text).toContain('must not contain credentials.');
+    const config = pass(
+      base({
+        GITHUB_TOKEN_GHE: 'ghe-token',
+        ROUTES: doc([
+          { repo: 'a/b', githubApiBase: ' https://ghe.example.com/api/v3 ', githubTokenEnv: 'GITHUB_TOKEN_GHE' },
+        ]),
+      }),
+    ).config;
+    expect(config.ROUTES?.routes[0]?.githubApiBase).toBe('https://ghe.example.com/api/v3');
+  });
+
+  it('caps a route webhook secret at the global maximum length', () => {
+    const text = formatProblems(
+      fail(
+        base({
+          GITHUB_WEBHOOK_SECRET_TEAM: 'x'.repeat(1025),
+          ROUTES: doc([{ repo: 'a/b', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_TEAM' }]),
+        }),
+      ).problems,
+    );
+    expect(text).toContain('GITHUB_WEBHOOK_SECRET_TEAM must be at most 1024 characters.');
+  });
+
+  it('rejects a route webhook secret equal to the global or another route secret', () => {
+    const other = 'b'.repeat(40);
+    const sameAsGlobal = formatProblems(
+      fail(
+        base({
+          GITHUB_WEBHOOK_SECRET_TEAM: SECRET,
+          ROUTES: doc([{ repo: 'a/b', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_TEAM' }]),
+        }),
+      ).problems,
+    );
+    expect(sameAsGlobal).toContain('GITHUB_WEBHOOK_SECRET_TEAM holds the same value as GITHUB_WEBHOOK_SECRET');
+    expect(sameAsGlobal).not.toContain(SECRET);
+    const sameAsRoute = formatProblems(
+      fail(
+        base({
+          GITHUB_WEBHOOK_SECRET_ONE: other,
+          GITHUB_WEBHOOK_SECRET_TWO: other,
+          ROUTES: doc([
+            { repo: 'a/one', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_ONE' },
+            { repo: 'a/two', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_TWO' },
+          ]),
+        }),
+      ).problems,
+    );
+    expect(sameAsRoute).toContain('GITHUB_WEBHOOK_SECRET_TWO holds the same value as GITHUB_WEBHOOK_SECRET_ONE');
+    pass(
+      base({
+        GITHUB_WEBHOOK_SECRET_ONE: other,
+        ROUTES: doc([
+          { repo: 'a/one', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_ONE' },
+          { repo: 'a/two', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_ONE' },
+        ]),
+      }),
+    );
+  });
+
+  it('does not suggest an unset githubTokenEnv as a way out of the cross-origin check', () => {
+    const text = formatProblems(
+      fail(base({ ROUTES: doc([{ repo: 'a/b', githubApiBase: 'https://ghe.example.com/api/v3' }]) })).problems,
+    );
+    expect(text).not.toContain('unset variable');
+  });
+
+  it('rejects a comma-only REPO_ALLOWLIST but keeps unset open', () => {
+    expect(formatProblems(fail(base({ REPO_ALLOWLIST: ' , ,' })).problems)).toContain('REPO_ALLOWLIST');
+    expect(pass(base()).config.REPO_ALLOWLIST).toEqual([]);
+  });
+});

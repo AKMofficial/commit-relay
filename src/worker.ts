@@ -14,7 +14,7 @@ import { CfQueueTier } from './queue/adapters/cf-queue.ts';
 import { WaitUntilTier } from './queue/adapters/cf-waituntil.ts';
 import { consumeJob, type RelayOutcome } from './queue/consumer.ts';
 import type { Dedup } from './relay/dedup.ts';
-import { recordDeferredDrop } from './relay/drop.ts';
+import { recordDeferredDrop, recordDrop } from './relay/drop.ts';
 import { isDeferred } from './relay/poster.ts';
 import { queuedJobSchema } from './queue/queued-job-schema.ts';
 import { createMemoryDedup } from './queue/adapters/store-memory.ts';
@@ -30,6 +30,9 @@ const CONFIG_INVALID = JSON.stringify({ status: 'config_invalid' });
 const MAX_DEFERRALS = 5;
 /** Cloudflare Queues caps delaySeconds at 12 hours. https://developers.cloudflare.com/queues/configuration/batching-retries/ */
 const MAX_QUEUE_DELAY_SECONDS = 43_200;
+/** Five retries at this spacing give an operator about 25 minutes to fix a bad
+ *  deploy before the messages land in the DLQ, where they can still be replayed. */
+const CONFIG_INVALID_RETRY_SECONDS = 300;
 
 // Per isolate, not per request: counters that reset on every delivery would
 // make /health/detail useless, and the dedup maps exist to span requests.
@@ -155,9 +158,9 @@ export default {
   async queue(batch: MessageBatch<QueuedJob>, env: Env): Promise<void> {
     const loaded = reportConfig(tryGetConfig(env), env);
     if (!loaded.ok) {
-      // Nothing can be posted and a redelivery would fail identically, so the
-      // messages are acked rather than sent round the retry loop to the DLQ.
-      for (const message of batch.messages) message.ack();
+      // Config problems are usually fixed by the next deploy, so the messages
+      // wait in the retry loop and end in the DLQ rather than being discarded.
+      for (const message of batch.messages) message.retry({ delaySeconds: CONFIG_INVALID_RETRY_SECONDS });
       return;
     }
 
@@ -166,7 +169,14 @@ export default {
     for (const message of batch.messages) {
       const parsed = queuedJobSchema.safeParse(message.body);
       if (!parsed.success) {
-        deps.log('error', 'queue_message_invalid', { attempt: message.attempts });
+        const body: unknown = message.body;
+        const raw = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+        recordDrop(deps, 'queue_message_invalid', {
+          reason: 'queue_message_invalid',
+          deliveryId: typeof raw['deliveryId'] === 'string' ? raw['deliveryId'].slice(0, 64) : null,
+          repo: typeof raw['repoFullName'] === 'string' ? raw['repoFullName'].slice(0, 256) : null,
+          attempt: message.attempts,
+        });
         message.ack();
         continue;
       }
@@ -222,22 +232,37 @@ export default {
           message.ack();
           continue;
         }
+        const delaySeconds = Math.min(outcome.retryAfterS, MAX_QUEUE_DELAY_SECONDS);
         const bound = env.COMMITS;
         if (bound !== undefined) {
-          // A single-post job has no partial progress, so it replays whole;
-          // `resumeAtSeq` exists only on a push and the compiler enforces that.
-          await bound.send(
-            toQueuedJob(
-              full.type === 'push'
-                ? { ...full, resumeAtSeq: outcome.resumeAtSeq, deferrals }
-                : { ...full, deferrals },
-            ),
-            { delaySeconds: Math.min(outcome.retryAfterS, MAX_QUEUE_DELAY_SECONDS) },
-          );
+          try {
+            // A single-post job has no partial progress, so it replays whole;
+            // `resumeAtSeq` exists only on a push and the compiler enforces that.
+            await bound.send(
+              toQueuedJob(
+                full.type === 'push'
+                  ? { ...full, resumeAtSeq: outcome.resumeAtSeq, deferrals }
+                  : { ...full, deferrals },
+              ),
+              { delaySeconds },
+            );
+          } catch (error) {
+            // The original body restarts from its old resumeAtSeq, so lines already
+            // posted may post again unless commit dedup still holds them. Chosen
+            // over acking: a duplicate line is recoverable, a lost push is not.
+            deps.log('error', 'queue_resend_failed', {
+              repo: job.repoFullName,
+              deliveryId: job.deliveryId,
+              resumeAtSeq: outcome.resumeAtSeq,
+              error: String(error),
+            });
+            message.retry({ delaySeconds });
+            continue;
+          }
           metrics.inc('retriedTotal');
           message.ack();
         } else {
-          message.retry({ delaySeconds: Math.min(outcome.retryAfterS, MAX_QUEUE_DELAY_SECONDS) });
+          message.retry({ delaySeconds });
         }
         continue;
       }

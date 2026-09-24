@@ -99,7 +99,7 @@ why each block is the way it is.
 | `queues.consumers[].dead_letter_queue` | `commit-relay-dlq` | Without a DLQ, messages that exhaust `max_retries` are deleted permanently. |
 | `vars` | `BRANCHES`, `MAX_COMMITS_PER_PUSH`, `GITHUB_CONCURRENCY`, `LOG_LEVEL` | Behaviour knobs only. Every binding arrives as a **string**; the config layer coerces. No `BASECAMP_*` key of any kind belongs here, not even a placeholder id: CI fails the build if one reappears. |
 
-**Per-isolate limits.** The pre-HMAC rate limiter and both dedup maps live in module state inside one Workers isolate. Cloudflare runs many isolates, so a determined attacker can spread load across them. For a true global ceiling, add a Cloudflare WAF rate-limiting rule on `POST` to your webhook path in front of the Worker.
+**Per-isolate limits.** The pre-HMAC rate limiter, both dedup maps and the Basecamp health status behind `/healthz` live in module state inside one Workers isolate. A rotated chatbot key seen by the queue consumer may not show on a `/healthz` answered by another isolate, so alert on `error basecamp_terminal` in Workers Logs as well. Cloudflare runs many isolates, so a determined attacker can spread load across them. For a true global ceiling, add a Cloudflare WAF rate-limiting rule on `POST` to your webhook path in front of the Worker.
 
 The DLQ deliberately has **no consumer**. Cloudflare: *"Messages delivered to a DLQ
 without an active consumer will persist for four (4) days before being deleted from

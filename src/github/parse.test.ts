@@ -106,6 +106,60 @@ describe('parsePush', () => {
     });
   });
 
+  it('blanks a ref the sanitizer would rewrite so it cannot route as the look-alike', () => {
+    expect(ok(run(payload({ ref: 'refs/heads/ma\u200Bin' })).result).ref).toBe('');
+    expect(ok(run(payload({ ref: 'refs/heads/main\u3164' })).result).ref).toBe('');
+    expect(ok(run(payload({ ref: 'refs/heads/main' })).result).ref).toBe('refs/heads/main');
+  });
+
+  it('keeps a decomposed (NFD) branch name routable', () => {
+    const ref = 'refs/heads/cafe\u0301';
+    expect(ok(run(payload({ ref })).result).ref).toBe('refs/heads/caf\u00e9');
+  });
+
+  it('keeps an emoji presentation selector routable but not one after a plain letter', () => {
+    const ref = 'refs/heads/fix/\u2764\ufe0f';
+    expect(ok(run(payload({ ref })).result).ref).toBe(ref);
+    expect(ok(run(payload({ ref: 'refs/heads/main\ufe0f' })).result).ref).toBe('');
+  });
+
+  it('keeps ZWJ and keycap emoji routable but not a joiner between plain letters', () => {
+    for (const ref of [
+      'refs/heads/feat/\u{1F469}\u200D\u{1F4BB}',
+      'refs/heads/feat/\u{1F469}\u{1F3FD}\u200D\u{1F4BB}',
+      'refs/heads/\u{1F3F3}\uFE0F\u200D\u{1F308}',
+      'refs/heads/1\uFE0F\u20E3',
+    ]) {
+      expect(ok(run(payload({ ref })).result).ref).toBe(ref);
+    }
+    expect(ok(run(payload({ ref: 'refs/heads/ma\u200Din' })).result).ref).toBe('');
+    expect(ok(run(payload({ ref: 'refs/heads/\u{1F469}\u200Dmain' })).result).ref).toBe('');
+  });
+
+  it('rejects a before or after that is not a 40 or 64 hex object id', () => {
+    expect(run(payload({ before: 'x'.repeat(5_000_000) })).result.ok).toBe(false);
+    expect(run(payload({ after: 'A'.repeat(40) })).result.ok).toBe(false);
+    expect(run(payload({ before: '0'.repeat(40), after: 'f'.repeat(64) })).result.ok).toBe(true);
+  });
+
+  it('reports no path count once the union reaches CHANGED_PATHS_CAP', () => {
+    const paths = (prefix: string) => Array.from({ length: 10_000 }, (_, i) => `${prefix}${i}`);
+    const commits = Array.from({ length: 6 }, (_, n) =>
+      commit({ id: String(n).repeat(40), added: paths(`${n}a`), removed: [], modified: [] }),
+    );
+    expect(ok(run(payload({ commits })).result).changedPathCount).toBeNull();
+  });
+
+  it('caps owner.login and repository.name in the mismatch warning', () => {
+    const raw = payload({
+      repository: { ...payload().repository, name: 'n'.repeat(5000), owner: { login: 'o'.repeat(5000) } },
+    });
+    const { lines } = run(raw);
+    const warn = lines.find((line) => line.event === 'repo_name_mismatch');
+    expect(String(warn?.fields?.['ownerLogin'])).toHaveLength(512);
+    expect(String(warn?.fields?.['repoName'])).toHaveLength(512);
+  });
+
   it('leaves authorUsername null when GitHub could not map the email', () => {
     const absent = payload({
       commits: [commit({ author: { name: 'Sam Lee', email: 'sam@example.com' } })],
@@ -362,6 +416,12 @@ describe('parsePullRequest', () => {
     expect(event.fileCount).toBe(0);
     expect(event.additions).toBe(0);
     expect(event.deletions).toBe(0);
+  });
+
+  it('blanks a base ref the sanitizer would rewrite', () => {
+    const raw = JSON.parse(prMergedRaw) as { pull_request: { base: { ref: string } } };
+    raw.pull_request.base.ref = 'ma\u200Bin';
+    expect(okPr(runPr(raw).result).baseRef).toBe('');
   });
 
   it('preserves a base branch name containing a glob metacharacter literally', () => {

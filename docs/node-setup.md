@@ -21,7 +21,7 @@ configuration.
 | `BASECAMP_BUCKET_ID` | yes | |
 | `BASECAMP_CHAT_ID` | yes | |
 | `GITHUB_TOKEN` | no | Fine-grained PAT, **Contents: read**. Mandatory in practice for private repos. Without it the Changes row renders `N/A`. |
-| `BRANCHES` | no | Default `main`. |
+| `BRANCHES` | no | Default `**`, every branch. Set `main` to post only that branch. |
 | `PORT` | no | Default `3000`. |
 | `SHUTDOWN_DRAIN_MS` | no | Default `20000`. See the drain budget below. |
 | `LOG_LEVEL` | no | Default `info`. |
@@ -56,7 +56,7 @@ dashboard"*.
 
 ```json
 "drainingSeconds": 30,
-"overlapSeconds": 30,
+"overlapSeconds": 0,
 "numReplicas": 1,
 "sleepApplication": false
 ```
@@ -67,8 +67,11 @@ dashboard"*.
   SIGTERM and SIGKILL are effectively simultaneous and the in-process queue is lost on
   **every redeploy**. The budget rule is `SHUTDOWN_DRAIN_MS + 5000 <= drainingSeconds
   * 1000`: with the shipped defaults, 20,000 + 5,000 ≤ 30,000.
-- **`overlapSeconds: 30`.** The new deployment absorbs incoming deliveries while the
-  old one drains, so nothing arrives at a socket that is closing.
+- **`overlapSeconds: 0`.** Any overlap runs two processes at once while the old one
+  drains its queue: two pacers post to the same room, the two pushes' lines interleave,
+  and a redelivery reaching the new process's empty dedup map posts again. With no
+  overlap, a delivery that arrives during the short switchover gets a connection error,
+  which GitHub records as a failed delivery you can redeliver.
 - **`numReplicas: 1` is a correctness requirement, not a cost setting.** Dedup, strict
   per-push ordering, and the Basecamp pacer are all per-process state; there is no
   shared store, by design. Two replicas give you duplicate and out-of-order messages,

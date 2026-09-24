@@ -3,7 +3,7 @@ import { consumeJob, isDeferred } from '../src/queue/consumer.ts';
 import type { Deps } from '../src/runtime/deps.ts';
 import type { PushJob } from '../src/core/types.ts';
 import { createMemoryDedup } from '../src/queue/adapters/store-memory.ts';
-import type { Dedup } from '../src/relay/dedup.ts';
+import { deliveryKey, type Dedup } from '../src/relay/dedup.ts';
 import {
   configOf,
   createBasecampRecorder,
@@ -56,12 +56,14 @@ function threeCommitJob(over: Partial<PushJob> = {}): PushJob {
   return job({ commits: [commit('a'), commit('b'), commit('c')], ...over });
 }
 
+const DELIVERY_1 = deliveryKey('your-org/your-repo', 'delivery-1');
+
 const sha = (seed: string): string => seed.repeat(40).slice(0, 40);
 
 describe('delivery dedup', () => {
   it('skips a delivery already recorded completed, without posting again', async () => {
     const { deps, dedup, basecamp, logs } = rig();
-    dedup.recordDelivery('delivery-1', 'completed');
+    dedup.recordDelivery(DELIVERY_1, 'completed');
 
     const outcome = await consumeJob(threeCommitJob(), deps, { dedup });
 
@@ -72,12 +74,21 @@ describe('delivery dedup', () => {
 
   it('reprocesses a delivery recorded failed, so a manual Redeliver still works', async () => {
     const { deps, dedup, basecamp } = rig();
-    dedup.recordDelivery('delivery-1', 'failed');
+    dedup.recordDelivery(DELIVERY_1, 'failed');
 
     await consumeJob(threeCommitJob(), deps, { dedup });
 
     expect(basecamp.calls).toHaveLength(3);
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('completed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('completed');
+  });
+
+  it('does not skip a delivery id completed for a different repo', async () => {
+    const { deps, dedup, basecamp } = rig();
+    dedup.recordDelivery(deliveryKey('other-org/other-repo', 'delivery-1'), 'completed');
+
+    await consumeJob(threeCommitJob(), deps, { dedup });
+
+    expect(basecamp.calls).toHaveLength(3);
   });
 
   it('processes an unknown delivery id and records the outcome', async () => {
@@ -86,7 +97,7 @@ describe('delivery dedup', () => {
     await consumeJob(threeCommitJob(), deps, { dedup });
 
     expect(basecamp.calls).toHaveLength(3);
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('completed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('completed');
   });
 
   it('records a delivery that dropped a line as failed, never completed', async () => {
@@ -94,7 +105,7 @@ describe('delivery dedup', () => {
 
     await consumeJob(job({ commits: [commit('a')] }), deps, { dedup });
 
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('failed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('failed');
   });
 
   it('posts one line for a commit already delivered on another ref', async () => {
@@ -119,7 +130,7 @@ describe('delivery dedup', () => {
     await consumeJob(pr, deps, { dedup });
 
     expect(basecamp.calls).toHaveLength(1);
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('completed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('completed');
   });
 });
 
@@ -216,7 +227,7 @@ describe('outcomes the queue handler acts on', () => {
     // Nothing posted, nothing recorded as done: the redelivery reprocesses it.
     expect(basecamp.calls).toHaveLength(1);
     expect(metrics.values.postedTotal).toBe(0);
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('failed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('failed');
   });
 
   it('treats a fatal status as terminal, records it, and returns rather than defers', async () => {
@@ -244,6 +255,37 @@ describe('outcomes the queue handler acts on', () => {
 
     expect(metrics.values.configHealthy).toBe(0);
     expect(logs.find('config_unhealthy')).toBeDefined();
+  });
+
+  it('clears configHealthy once the same room posts successfully again', async () => {
+    let status = 401;
+    const { deps, dedup, metrics } = rig(
+      { POST_RETRY_BUDGET_MS: '0' },
+      { basecamp: () => ({ status }) },
+    );
+
+    await consumeJob(job({ commits: [commit('a')] }), deps, { dedup });
+    expect(metrics.values.configHealthy).toBe(0);
+
+    status = 201;
+    await consumeJob(job({ deliveryId: 'delivery-2', commits: [commit('b')] }), deps, { dedup });
+    expect(metrics.values.configHealthy).toBe(1);
+  });
+
+  it('keeps configHealthy at 0 when another key succeeds in the revoked key\'s room', async () => {
+    let status = 401;
+    const { deps, dedup, metrics } = rig(
+      { POST_RETRY_BUDGET_MS: '0' },
+      { basecamp: () => ({ status }) },
+    );
+
+    await consumeJob(job({ commits: [commit('a')] }), deps, { dedup });
+    expect(metrics.values.configHealthy).toBe(0);
+
+    status = 201;
+    const otherKey = { ...job().target, chatbotKey: 'other-chatbot-key' };
+    await consumeJob(job({ deliveryId: 'delivery-2', commits: [commit('b')], target: otherKey }), deps, { dedup });
+    expect(metrics.values.configHealthy).toBe(0);
   });
 
   it('collapses repeated auth failures to one basecamp_terminal per repo', async () => {
@@ -276,7 +318,7 @@ describe('outcomes the queue handler acts on', () => {
 
     expect(isDeferred(outcome)).toBe(true);
     expect(basecamp.calls).toHaveLength(1);
-    expect(dedup.deliveryOutcome('delivery-1')).toBe('failed');
+    expect(dedup.deliveryOutcome(DELIVERY_1)).toBe('failed');
   });
 });
 
@@ -287,6 +329,19 @@ describe('pacing', () => {
     await consumeJob(threeCommitJob(), deps, { dedup });
 
     expect(sleeps.filter((ms) => ms === 250)).toHaveLength(3);
+  });
+
+  it('caps total x-ratelimit pacing at the wait budget, then falls back to the static interval', async () => {
+    const low = '{"name":"API","period":30,"limit":50,"remaining":1,"until":"2026-08-31T11:15:20Z"}';
+    const { deps, dedup, sleeps } = rig(
+      { BASECAMP_MIN_INTERVAL_MS: '250', RATELIMIT_WAIT_BUDGET_MS: '40000' },
+      { basecamp: () => ({ status: 201, headers: { 'x-ratelimit': low } }) },
+    );
+
+    await consumeJob(threeCommitJob(), deps, { dedup });
+
+    expect(sleeps.filter((ms) => ms === 30_000)).toHaveLength(1);
+    expect(sleeps.filter((ms) => ms === 250)).toHaveLength(2);
   });
 
   it('sleeps the poster interval once for a pull request and never reads a clock delta', async () => {

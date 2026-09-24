@@ -22,6 +22,19 @@ describe('createMetrics', () => {
     expect(m.snapshot().configHealthy).toBe(0);
   });
 
+  it('is unhealthy while any target is terminal and recovers when that target posts again', () => {
+    const m = createMetrics();
+    m.noteTargetHealth('1|10|100', false);
+    m.noteTargetHealth('1|20|200', false);
+    expect(m.snapshot().configHealthy).toBe(0);
+    m.noteTargetHealth('1|10|100', true);
+    expect(m.snapshot().configHealthy).toBe(0);
+    m.noteTargetHealth('1|30|300', true);
+    expect(m.snapshot().configHealthy).toBe(0);
+    m.noteTargetHealth('1|20|200', true);
+    expect(m.snapshot().configHealthy).toBe(1);
+  });
+
   it('returns a copy, so a caller cannot mutate the store', () => {
     const m = createMetrics();
     const snapshot = m.snapshot();

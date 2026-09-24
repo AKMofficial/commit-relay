@@ -61,8 +61,9 @@ export interface PushEvent {
   senderType: string;
   commits: NormalizedCommit[];
   /** The UNION of `added + removed + modified` across the push (8.4): summing
-   *  per-commit `fileCount` would double-count a file touched by two commits. */
-  changedPathCount: number;
+   *  per-commit `fileCount` would double-count a file touched by two commits.
+   *  Null when the union hit `CHANGED_PATHS_CAP`, so the Files row reads N/A. */
+  changedPathCount: number | null;
 }
 
 /** `authorUsername` is null when GitHub could not map the commit email to an account. */

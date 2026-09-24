@@ -6,12 +6,15 @@ import { parseRateBuckets, pacingMs } from './pacer.ts';
 import type { BasecampTarget, PosterConfig, PostResult } from './types.ts';
 import { WallTimeBudget, backoffMs, isTimeoutError, retryAfterMs } from '../core/backoff.ts';
 import { RelayError } from '../security/errors.ts';
-import { contentBytes } from '../core/bytes.ts';
+import { contentBytes, readCapped } from '../core/bytes.ts';
 import { SubrequestBudgetExceeded } from '../core/subrequests.ts';
 import { redactText } from '../security/redact.ts';
 
 /** Handed back to the queue when the 5xx retry budget is spent; the poster defers instead of dropping. */
 const BUDGET_EXHAUSTED_RETRY_S = 60;
+
+/** Nothing reads the response body, so draining stops here instead of buffering a whole error page. */
+const DRAIN_MAX_BYTES = 4096;
 
 export interface PostDeps {
   fetch: typeof fetch;
@@ -20,7 +23,7 @@ export interface PostDeps {
 }
 
 export function linesUrl(t: BasecampTarget): string {
-  return `${t.apiBase}/${t.accountId}/integrations/${t.chatbotKey}`
+  return `${t.apiBase}/${t.accountId}/integrations/${encodeURIComponent(t.chatbotKey)}`
     + `/buckets/${t.bucketId}/chats/${t.chatId}/lines.json`;
 }
 
@@ -78,6 +81,8 @@ export async function postLine(
           Accept: 'application/json',
         },
         body,
+        // A redirect would replay the key-bearing POST to wherever Location points.
+        redirect: 'manual',
         signal: AbortSignal.timeout(cfg.timeoutMs),
       });
     } catch (err) {
@@ -124,7 +129,12 @@ export async function postLine(
     const fatal = isFatalStatus(res.status);
     // Read the undocumented pacing header BEFORE draining, then always drain the socket.
     const buckets = parseRateBuckets(res.headers.get('x-ratelimit'));
-    await res.text();
+    // The status already decided the outcome, so a body that fails mid-read changes nothing.
+    try {
+      await readCapped(res.body, DRAIN_MAX_BYTES);
+    } catch {
+      /* drain only */
+    }
     const pacing = pacingMs(buckets, cfg.minIntervalMs, cfg.maxSleepMs);
 
     if (res.status === CREATED) {

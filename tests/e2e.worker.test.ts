@@ -247,7 +247,7 @@ describe('the queue handler', () => {
     expect(loaded[0]).toHaveProperty('tokens');
   });
 
-  it('acks rather than dead-letters when the config cannot boot', async () => {
+  it('retries with a delay rather than acking when the config cannot boot', async () => {
     const { batch: b, message } = batch(rollupJob());
     const lines = captureLines();
 
@@ -256,8 +256,9 @@ describe('the queue handler', () => {
       { GITHUB_WEBHOOK_SECRET: 'too-short' } as Parameters<typeof worker.queue>[1],
     );
 
-    expect(message.acks).toBe(1);
-    expect(message.retries).toHaveLength(0);
+    // Kept for the fix to land, then the DLQ; never silently discarded.
+    expect(message.acks).toBe(0);
+    expect(message.retries).toEqual([{ delaySeconds: 300 }]);
 
     // 7.2: the numbered human list, not the bare key names.
     const invalid = lines().filter((line) => line['evt'] === 'config_invalid');

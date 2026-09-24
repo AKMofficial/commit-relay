@@ -124,6 +124,6 @@ A nested single-column table is the obvious alternative and is **rejected**: nes
 tables inside a sanitizer nobody can inspect are strictly more fragile than block
 siblings.
 
-The switch is a build-time constant in `src/render/message.ts`, not a runtime config
+The switch is the build-time constant `USE_COLSPAN` in `src/render/table.ts`, not a runtime config
 knob. There is no signal to key it on, a stripped attribute still returns 201, so
 exposing it as a knob would only offer a choice nobody can make correctly.

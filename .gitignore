@@ -16,3 +16,7 @@ dist/
 
 # Local temp
 tmp/
+
+# Registry credentials
+.npmrc
+.yarnrc.yml

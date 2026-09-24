@@ -21,6 +21,12 @@ export interface DedupStores {
 
 import type { PullRequestJob, RollupKind } from '../core/types.ts';
 
+/** The delivery id is unsigned, so it is scoped to the signed repo: a sender on
+ *  one route cannot mark another route's delivery completed. */
+export function deliveryKey(repoFullName: string, deliveryId: string): string {
+  return `${repoFullName}|${deliveryId}`;
+}
+
 export function commitKey(
   repoFullName: string,
   sha: string,

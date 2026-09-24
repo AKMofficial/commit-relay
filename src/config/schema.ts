@@ -12,6 +12,7 @@ import {
 } from './env.ts';
 import { requireLineStatsViolated } from '../github/token.ts';
 import { parseLinesUrl } from './lines-url.ts';
+import { compileGlob } from './glob.ts';
 import pkg from '../../package.json' with { type: 'json' };
 
 /** Names the received type in the worked example's words (7.2). */
@@ -31,6 +32,20 @@ const envName = z
   .string()
   .trim()
   .regex(/^[A-Z][A-Z0-9_]*$/, 'must be an UPPER_SNAKE_CASE environment variable name');
+
+/** Basecamp issues URL-safe token keys, so anything else is a paste error. The key is never echoed. */
+const CHATBOT_KEY_CHARSET = /^[A-Za-z0-9_-]+$/;
+const CHATBOT_KEY_CHARSET_MESSAGE = 'must contain only letters, digits, "-" and "_".';
+
+/** Shared by the inline fields and the env variables that routes name, so a
+ *  route's key or secret meets exactly the policy of the global one. */
+const chatbotKeyValue = z
+  .string()
+  .trim()
+  .min(8, 'must be at least 8 characters.')
+  .max(200, 'must be at most 200 characters.')
+  .regex(CHATBOT_KEY_CHARSET, CHATBOT_KEY_CHARSET_MESSAGE)
+  .superRefine(denyPublishedLiterals);
 
 const GLOBSTAR_MAX_MESSAGE = 'must not contain more than 2 "**" segments.';
 
@@ -63,7 +78,7 @@ const target = z
       )
       .optional(),
     /** Warns at boot: a bearer credential inline in a config file. */
-    chatbotKey: z.string().trim().min(8).max(200).superRefine(denyPublishedLiterals).optional(),
+    chatbotKey: chatbotKeyValue.optional(),
   })
   .strict()
   .refine((t) => !(t.chatbotKey && t.chatbotKeyEnv), {
@@ -87,7 +102,7 @@ const route = z
     webhookSecretEnv: envName
       .regex(/^GITHUB_WEBHOOK_SECRET_[A-Z0-9_]+$/, 'must be named GITHUB_WEBHOOK_SECRET_<SUFFIX>')
       .optional(),
-    githubApiBase: z.string().url().startsWith('https://').optional(),
+    githubApiBase: noCredentials(z.string().trim().url().startsWith('https://')).optional(),
     skipMergeCommits: z.boolean().optional(),
     skipForcedPushes: z.boolean().optional(),
     skipNonDistinct: z.boolean().optional(),
@@ -124,6 +139,8 @@ const PUBLISHED_LITERAL_SOURCES: Readonly<Record<string, string>> = {
   PLACEHOLDERKEY0123456789: '.env.example and .dev.vars.example',
 };
 
+const WEBHOOK_SECRET_MAX_LENGTH = 1024;
+
 export const PUBLISHED_SECRET_LITERALS: readonly string[] = Object.keys(PUBLISHED_LITERAL_SOURCES);
 
 function publishedLiteral(value: string): string | null {
@@ -148,6 +165,21 @@ function denyPublishedLiterals(value: string, ctx: z.RefinementCtx): void {
   ctx.addIssue({ code: 'custom', message: publishedLiteralMessage(literal) });
 }
 
+const webhookSecretValue = z
+  .string({ error: (issue) => (issue.input === undefined ? 'is not set.' : 'must be a string.') })
+  .trim()
+  .min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters.`)
+  .max(WEBHOOK_SECRET_MAX_LENGTH, `must be at most ${WEBHOOK_SECRET_MAX_LENGTH} characters.`)
+  .superRefine(denyPublishedLiterals);
+
+const githubTokenValue = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1024, 'must be at most 1024 characters.')
+  .regex(PRINTABLE_ASCII, PRINTABLE_ASCII_MESSAGE)
+  .superRefine(denyPublishedLiterals);
+
 function intVar(fallback: number, min: number, max: number) {
   return z
     .preprocess(
@@ -169,34 +201,44 @@ function listVar(fallback: string[]) {
   return z.preprocess(coerceList, globList).default(fallback);
 }
 
+/** Shared by every API base, global or per-route: a credential in the URL is not
+ *  registered with the redactor. */
+function noCredentials<T extends z.ZodType<string>>(schema: T) {
+  return schema.refine((v) => {
+    try {
+      const u = new URL(v);
+      return u.username === '' && u.password === '';
+    } catch {
+      return true; // the url() check reports it
+    }
+  }, 'must not contain credentials.');
+}
+
 /** An absolute URL with no scheme constraint: BASECAMP_API_BASE is documented as
  *  taking a plain-http mock (`http://127.0.0.1:9999`), and a GHES API base is
  *  the operator's own host. */
 function urlBase(fallback: string) {
-  return z
-    .string()
-    .trim()
-    .url('must be an absolute URL, e.g. https://api.github.com')
-    .refine(
-      (v) => {
-        if (v.startsWith('https://')) return true;
-        try {
-          const u = new URL(v);
-          return (
-            v.startsWith('http://') &&
-            (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
-          );
-        } catch {
-          return false;
-        }
-      },
-      'must use the https scheme.',
-    )
-    .refine((v) => {
-      const u = new URL(v);
-      return u.username === '' && u.password === '';
-    }, 'must not contain credentials.')
-    .default(fallback);
+  return noCredentials(
+    z
+      .string()
+      .trim()
+      .url('must be an absolute URL, e.g. https://api.github.com')
+      .refine(
+        (v) => {
+          if (v.startsWith('https://')) return true;
+          try {
+            const u = new URL(v);
+            return (
+              v.startsWith('http://') &&
+              (u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]')
+            );
+          } catch {
+            return false;
+          }
+        },
+        'must use the https scheme.',
+      ),
+  ).default(fallback);
 }
 
 /** GITHUB_WEB_ORIGIN is the sole allowlist `safeUrl()` checks rendered hrefs
@@ -219,6 +261,9 @@ export const REPOSITORY_URL: string = pkg.repository.url;
 const DEFAULT_USER_AGENT = `${pkg.name}/${pkg.version} (+${REPOSITORY_URL})`;
 export const DEFAULT_WEBHOOK_PATH = '/webhook';
 
+/** Exported so /health/detail can hold its fallback read to the same rule. */
+export const healthTokenValue = z.string().trim().min(16, 'must be at least 16 characters.').max(256);
+
 export const configObject = z.object({
   BASECAMP_LINES_URL: z
     .string()
@@ -229,13 +274,7 @@ export const configObject = z.object({
     })
     .optional(),
   BASECAMP_ACCOUNT_ID: numericId.optional(),
-  BASECAMP_CHATBOT_KEY: z
-    .string()
-    .trim()
-    .min(8, 'must be at least 8 characters.')
-    .max(200)
-    .superRefine(denyPublishedLiterals)
-    .optional(),
+  BASECAMP_CHATBOT_KEY: chatbotKeyValue.optional(),
   BASECAMP_BUCKET_ID: numericId.optional(),
   BASECAMP_CHAT_ID: numericId.optional(),
   BASECAMP_API_BASE: urlBase('https://3.basecampapi.com'),
@@ -244,19 +283,8 @@ export const configObject = z.object({
   BASECAMP_MAX_SLEEP_MS: intVar(30_000, 0, MAX_MS),
   USER_AGENT: z.string().trim().min(1).max(256).default(DEFAULT_USER_AGENT),
 
-  GITHUB_WEBHOOK_SECRET: z
-    .string({ error: (issue) => (issue.input === undefined ? 'is not set.' : 'must be a string.') })
-    .trim()
-    .min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters.`)
-    .max(1024)
-    .superRefine(denyPublishedLiterals),
-  GITHUB_TOKEN: z
-    .string()
-    .trim()
-    .min(1)
-    .max(1024)
-    .regex(PRINTABLE_ASCII, PRINTABLE_ASCII_MESSAGE)
-    .optional(),
+  GITHUB_WEBHOOK_SECRET: webhookSecretValue,
+  GITHUB_TOKEN: githubTokenValue.optional(),
   GITHUB_API_BASE: urlBase('https://api.github.com'),
   GITHUB_WEB_ORIGIN: httpsOrigin('https://github.com'),
   GITHUB_CONCURRENCY: intVar(4, 1, 32),
@@ -278,7 +306,13 @@ export const configObject = z.object({
   CONFIG_FILE: z.string().trim().min(1).optional(),
   BRANCHES: listVar(['**']),
   TAGS: listVar([]),
-  REPO_ALLOWLIST: listVar([]),
+  // Unset is open (documented); a value that lists nothing, like ",", is a mistake.
+  REPO_ALLOWLIST: z
+    .preprocess(
+      coerceList,
+      globList.min(1, 'must list at least one repository pattern. Leave it unset to allow every repository.'),
+    )
+    .default([]),
   SKIP_FORCED_PUSHES: boolVar(false),
   SKIP_MERGE_COMMITS: boolVar(true),
   SKIP_NON_DISTINCT: boolVar(true),
@@ -313,7 +347,7 @@ export const configObject = z.object({
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   LOG_PAYLOADS: boolVar(false),
-  HEALTH_TOKEN: z.string().trim().min(16, 'must be at least 16 characters.').max(256).optional(),
+  HEALTH_TOKEN: healthTokenValue.optional(),
 });
 
 export type Config = z.infer<typeof configObject>;
@@ -420,7 +454,13 @@ function salvageRoutes(value: unknown): RoutesDocument | undefined {
 
 /** Each family carries its own value policy, which is why the kind is tracked
  *  rather than just the name. */
-type NamedSecretKind = 'githubToken' | 'webhookSecret' | 'chatbotKey';
+const NAMED_SECRET_VALUE = {
+  githubToken: githubTokenValue,
+  webhookSecret: webhookSecretValue,
+  chatbotKey: chatbotKeyValue,
+} as const;
+
+type NamedSecretKind = keyof typeof NAMED_SECRET_VALUE;
 
 interface NamedSecret {
   name: string;
@@ -465,7 +505,7 @@ export function crossFieldIssues(source: EnvSource, cfg: Partial<Config>): Cross
         issues.push({
           path: `ROUTES[${i}].githubApiBase`,
           message:
-            `points at ${routeOrigin}, which differs from GITHUB_API_BASE (${globalOrigin}), but githubTokenEnv is not set, so the global token would be sent to a different host. Set githubTokenEnv to a route-specific token, or point githubTokenEnv at an unset variable to send none.`,
+            `points at ${routeOrigin}, which differs from GITHUB_API_BASE (${globalOrigin}), but githubTokenEnv is not set, so the global token would be sent to a different host. Set githubTokenEnv to a variable holding a token issued for that host.`,
         });
       }
     } catch {
@@ -490,15 +530,13 @@ export function crossFieldIssues(source: EnvSource, cfg: Partial<Config>): Cross
     // A route's own secret is subject to the same policy as the global one it
     // stands in for; otherwise webhookSecretEnv is a way around the 32-character
     // floor and the denylist (11.2).
-    if (kind === 'webhookSecret' && value.length < SECRET_MIN_LENGTH) {
-      issues.push({ path: name, message: `must be at least ${SECRET_MIN_LENGTH} characters.` });
+    for (const issue of NAMED_SECRET_VALUE[kind].safeParse(value).error?.issues ?? []) {
+      issues.push({ path: name, message: issue.message });
     }
-    if (kind === 'githubToken' && !PRINTABLE_ASCII.test(value)) {
-      issues.push({ path: name, message: PRINTABLE_ASCII_MESSAGE });
-    }
-    const literal = publishedLiteral(value);
-    if (literal !== null) issues.push({ path: name, message: publishedLiteralMessage(literal) });
   }
+
+  issues.push(...duplicateWebhookSecretIssues(source, cfg));
+  issues.push(...shadowedRouteIssues(cfg.ROUTES?.routes ?? []));
 
   const timeout = cfg.GITHUB_TIMEOUT_MS;
   const deadline = cfg.ENRICH_DEADLINE_MS;
@@ -549,5 +587,67 @@ export function crossFieldIssues(source: EnvSource, cfg: Partial<Config>): Cross
     });
   }
 
+  return issues;
+}
+
+/** One signature verifies under every name that holds the same value, so a route
+ *  secret equal to another secret gives no isolation at all. The value is never echoed. */
+function duplicateWebhookSecretIssues(source: EnvSource, cfg: Partial<Config>): CrossFieldIssue[] {
+  const issues: CrossFieldIssue[] = [];
+  const seen = new Map<string, string>();
+  const checked = new Set<string>();
+  if (cfg.GITHUB_WEBHOOK_SECRET !== undefined) seen.set(cfg.GITHUB_WEBHOOK_SECRET, 'GITHUB_WEBHOOK_SECRET');
+  for (const route of cfg.ROUTES?.routes ?? []) {
+    const name = route.webhookSecretEnv;
+    if (name === undefined || checked.has(name)) continue;
+    checked.add(name);
+    const value = readValue(source, name);
+    if (value === undefined) continue;
+    const other = seen.get(value);
+    if (other !== undefined) {
+      issues.push({
+        path: name,
+        message: `holds the same value as ${other}, so either secret can sign for the other's repositories. Give each its own secret.`,
+      });
+      continue;
+    }
+    seen.set(value, name);
+  }
+  return issues;
+}
+
+/** First match wins on repo alone, so a route an earlier pattern fully covers is
+ *  dead, along with its secret and token isolation. Only certain coverage is
+ *  flagged: a later literal the earlier glob accepts, or an earlier "**", "*" + "/*"
+ *  or "owner/*" covering a later single-segment pattern under the same owner. */
+function shadowedRouteIssues(routes: readonly Route[]): CrossFieldIssue[] {
+  const issues: CrossFieldIssue[] = [];
+  const isLiteral = (p: string) => !/[*?]/.test(p);
+  const covers = (earlier: string, later: string): boolean => {
+    const e = earlier.toLowerCase();
+    const l = later.toLowerCase();
+    if (e === l || e === '**' || e === '*/*') return true;
+    if (isLiteral(l)) return compileGlob(e)(l);
+    const [owner, rest, ...extra] = e.split('/');
+    const [laterOwner, laterRest, ...laterExtra] = l.split('/');
+    return (
+      rest === '*' &&
+      extra.length === 0 &&
+      owner !== undefined &&
+      isLiteral(owner) &&
+      owner === laterOwner &&
+      laterRest !== undefined &&
+      laterRest !== '**' &&
+      laterExtra.length === 0
+    );
+  };
+  routes.forEach((r, i) => {
+    const j = routes.slice(0, i).findIndex((earlier) => covers(earlier.repo, r.repo));
+    if (j < 0) return;
+    issues.push({
+      path: `ROUTES[${i}].repo`,
+      message: `("${r.repo}") can never match: ROUTES[${j}].repo ("${routes[j]?.repo ?? ''}") comes first and covers every repository it would. Move the more specific route above it.`,
+    });
+  });
   return issues;
 }

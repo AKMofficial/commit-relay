@@ -58,5 +58,9 @@ export function createFakeMetrics(dropWindowMs = 300_000): FakeMetrics {
     dropsInWindow(now) {
       return inner.dropsInWindow(now);
     },
+    noteTargetHealth(target, healthy) {
+      inner.noteTargetHealth(target, healthy);
+      sync();
+    },
   };
 }

@@ -3,8 +3,10 @@
  *
  *  The global bucket is split by signature SHAPE, which only separates well-formed
  *  callers from malformed ones; a forged 64-hex header draws on the signed half too.
- *  The guarantee that holds is the refund: a delivery that passes HMAC gets its global
- *  token back, while its per-IP allowance (RATE_LIMIT_PER_MINUTE) stays spent. */
+ *  The guarantee that holds is the refund: a delivery that passes HMAC gets both its
+ *  tokens back, so RATE_LIMIT_PER_MINUTE only ever charges requests that fail
+ *  verification. GitHub sends from a small pool of addresses, so a busy org hook
+ *  would otherwise exhaust one sender IP's bucket with genuine deliveries. */
 
 export interface RateLimitDecision {
   allowed: boolean;
@@ -23,8 +25,8 @@ export interface RateLimiterOptions {
 export interface RateLimiter {
   /** `signed` selects the global half: true only for a well-shaped signature header. */
   check(key: string, signed?: boolean): RateLimitDecision;
-  /** Refund the global token after HMAC verification. The per-IP token stays spent. */
-  credit(signed?: boolean): void;
+  /** Refund both tokens after HMAC verification. `key` is the one passed to `check`. */
+  credit(key: string, signed?: boolean): void;
 }
 
 interface Bucket {
@@ -46,6 +48,12 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
     const elapsed = Math.max(0, at - bucket.updatedAt);
     bucket.tokens = Math.min(capacity, bucket.tokens + (elapsed * capacity) / 60_000);
     bucket.updatedAt = at;
+  }
+
+  /** Clamped, so a duplicate credit cannot mint allowance. */
+  function refund(bucket: Bucket, capacity: number, at: number): void {
+    refill(bucket, capacity, at);
+    bucket.tokens = Math.min(capacity, bucket.tokens + 1);
   }
 
   function retryAfter(bucket: Bucket, capacity: number): number {
@@ -97,12 +105,12 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
       return { allowed: true, scope: null, retryAfterSeconds: 0 };
     },
 
-    credit(signed = false) {
+    credit(key, signed = false) {
       const at = options.now();
-      const globalBucket = globalBuckets[signed ? 'signed' : 'unsigned'];
-      refill(globalBucket, globalCapacity, at);
-      // Clamped, so a duplicate credit cannot mint allowance.
-      globalBucket.tokens = Math.min(globalCapacity, globalBucket.tokens + 1);
+      refund(globalBuckets[signed ? 'signed' : 'unsigned'], globalCapacity, at);
+      // A pruned bucket was already full, so there is nothing to refund.
+      const bucket = buckets.get(key);
+      if (bucket !== undefined) refund(bucket, perIpCapacity, at);
     },
   };
 }

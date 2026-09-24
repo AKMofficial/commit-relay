@@ -56,7 +56,7 @@ bash scripts/check-placeholders.sh
 pnpm ls --prod --depth Infinity --json | node scripts/check-deps.mjs
 ```
 
-`pnpm test` also runs `tests/invariants.test.ts`, which greps `src/**` for the five
+`pnpm test` also runs `tests/invariants.test.ts`, which greps `src/**` for the six
 rules in [docs/INVARIANTS.md](./docs/INVARIANTS.md), read that file before touching
 credential comparisons, rendering, or outbound hosts.
 

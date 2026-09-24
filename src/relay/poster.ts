@@ -5,9 +5,10 @@ import { flipsConfigHealth } from '../basecamp/classify.ts';
 import { postLine } from '../basecamp/client.ts';
 import type { BasecampTarget, PosterConfig, PostResult } from '../basecamp/types.ts';
 import type { Deps } from '../runtime/deps.ts';
+import { WallTimeBudget } from '../core/backoff.ts';
 import type { Sequence } from '../core/sequence.ts';
 import type { CommitJob, JobBase, PullRequestJob, PushJob, RelayResult } from '../core/types.ts';
-import { throttled } from '../obs/log.ts';
+import { AUTH_LOG_WINDOW_MS, throttled } from '../obs/log.ts';
 import { buildCommitTable, buildRollupTable } from '../render/message.ts';
 import { ContentUnrenderableError, type RenderLimits } from '../render/table.ts';
 import { buildPullRequestTable } from '../render/pull-request.ts';
@@ -59,6 +60,14 @@ function posterConfig(deps: Deps): PosterConfig {
   };
 }
 
+/** One room and chatbot key: a 401 condemns the key, not the room, so another
+ *  route's success in the same room must not clear a revoked key's failure. The
+ *  key never leaves process memory, and changing it needs a restart anyway. */
+function targetKey(push: Postable): string {
+  const t = push.target;
+  return `${t.accountId}|${t.bucketId}|${t.chatId}|${t.chatbotKey}`;
+}
+
 function basecampTarget(push: Postable): BasecampTarget {
   return {
     apiBase: push.target.apiBase,
@@ -104,6 +113,7 @@ async function postContent(
   });
   deps.metrics.set('lastBasecampStatus', result.status);
   if (result.ok) {
+    deps.metrics.noteTargetHealth(targetKey(push), true);
     deps.metrics.inc('postedTotal');
     deps.metrics.set('lastPostAt', deps.now());
     deps.log('info', 'message_posted', {
@@ -131,9 +141,9 @@ function recordFatal(result: PostResult, push: Postable, line: PostedLine, deps:
   if (!flipsConfigHealth(result.status)) return;
   // Row 25: a rotated key is otherwise invisible - every push still returns 202
   // and the room simply goes quiet - so this is what pages an operator.
-  deps.metrics.set('configHealthy', 0);
+  deps.metrics.noteTargetHealth(targetKey(push), false);
   // Collapsed to once per repo per hour, not once per commit (14.2).
-  if (!throttled(`auth:${push.repoFullName}`, 3_600_000, deps.now())) return;
+  if (!throttled(`auth:${push.repoFullName}`, AUTH_LOG_WINDOW_MS, deps.now())) return;
   deps.log('error', 'basecamp_terminal', {
     deliveryId: push.deliveryId,
     repo: push.repoFullName,
@@ -169,6 +179,9 @@ export async function runPoster(
   const limits = renderLimits(deps, push);
   const attempt = options.attempt ?? 1;
   const sendCtx = sendContext(push, deps);
+  // x-ratelimit pacing draws on the 429 wait budget; once spent, fall back to the
+  // static interval and let a 429 defer the job instead of holding the invocation.
+  const pacingBudget = new WallTimeBudget(sendCtx.config.rateLimitWaitBudgetMs);
   let posted = 0;
   let failed = 0;
   let dropped = 0;
@@ -224,7 +237,9 @@ export async function runPoster(
       recordFatal(result, push, { sha: job.commit.id, seq: job.seq, attempt }, deps);
     }
 
-    await deps.sleep(result.pacingMs);
+    const minMs = sendCtx.config.minIntervalMs;
+    const extraMs = Math.max(0, result.pacingMs - minMs);
+    await deps.sleep(pacingBudget.spend(extraMs) ? result.pacingMs : Math.min(result.pacingMs, minMs));
   }
 
   return { posted, failed, skipped: seq.counts().skipped, dropped };

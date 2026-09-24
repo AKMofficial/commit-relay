@@ -6,6 +6,7 @@ import { readCapped } from '../core/bytes.ts';
 import { backoffMs, clampSleep, isTimeoutError, retryAfterMs } from '../core/backoff.ts';
 import type { CommitStats } from '../core/types.ts';
 import { commitUrl } from './url.ts';
+import { AUTH_LOG_WINDOW_MS, throttled } from '../obs/log.ts';
 
 export interface StatsRequest {
   owner: string;
@@ -138,7 +139,8 @@ async function run(req: StatsRequest, deps: StatsDeps): Promise<StatsOutcome> {
 
     let res: Response;
     try {
-      res = await deps.fetchImpl(url, { headers, signal: AbortSignal.any(signals) });
+      // Never forward the Authorization header to a redirect target; a 3xx is a failed enrichment.
+      res = await deps.fetchImpl(url, { headers, redirect: 'manual', signal: AbortSignal.any(signals) });
     } catch (error) {
       if (isAborted(req.signal)) {
         deps.log('warn', 'stats_deadline', base);
@@ -222,6 +224,11 @@ async function run(req: StatsRequest, deps: StatsDeps): Promise<StatsOutcome> {
             ? 'a private repository returns 404 without a token, so the Changes row stays "N/A"'
             : 'the token was rejected',
       });
+      // A revoked token (secret scanning, an admin) otherwise shows only as N/A,
+      // so it gets one operator-level line per repo per hour (14.2).
+      if (res.status === 401 && req.token && throttled(`github_token:${req.owner}/${req.repo}`, AUTH_LOG_WINDOW_MS, deps.now())) {
+        deps.log('error', 'github_token_rejected', { ...base, repo: `${req.owner}/${req.repo}` });
+      }
       return { stats: null };
     }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import wranglerConfig from '../wrangler.jsonc?raw';
 
-/** The five enforced source rules of 15.1, as greps. Sources come through Vite's
+/** The six enforced source rules of 15.1, as greps. Sources come through Vite's
  *  `?raw` glob, not `fs`, so both pools run it; `workerd` has no fs (15.3). */
 
 const RAW = import.meta.glob('/src/**/*.ts', {

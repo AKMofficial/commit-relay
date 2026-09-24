@@ -12,6 +12,6 @@
     "numReplicas": 1,
     "sleepApplication": false,
     "drainingSeconds": 30,
-    "overlapSeconds": 30
+    "overlapSeconds": 0
   }
 }

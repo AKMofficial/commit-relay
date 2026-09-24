@@ -7,7 +7,7 @@ import type { RelayJob } from './core/types.ts';
 import { app, setAppContext } from './http/app.ts';
 import { setHealthDeps } from './http/health.ts';
 import { createLifecycle } from './lifecycle.ts';
-import { createLogger, loggerFor, throttled } from './obs/log.ts';
+import { createLogger, loggerFor, NOISE_LOG_WINDOW_MS, throttled } from './obs/log.ts';
 import { createMetrics } from './obs/metrics.ts';
 import { consumeJob } from './queue/consumer.ts';
 import { MemoryFifoTier, type RunMode } from './queue/adapters/memory-fifo.ts';
@@ -131,12 +131,14 @@ const server = serve(
       const declared = raw === null || raw === '' ? NaN : Number(raw);
       // GitHub always sends Content-Length; chunked bodies are unbounded until read.
       if (request.method !== 'GET' && (!Number.isInteger(declared) || declared < 0)) {
-        const slashIdx = request.url.indexOf('/', 8);
-        const path = slashIdx === -1 ? '' : request.url.slice(slashIdx);
-        log('warn', 'content_length_required', {
-          method: request.method,
-          path,
-        });
+        if (throttled('content_length_required', NOISE_LOG_WINDOW_MS, Date.now())) {
+          const slashIdx = request.url.indexOf('/', 8);
+          const path = slashIdx === -1 ? '' : request.url.slice(slashIdx, slashIdx + 200);
+          log('warn', 'content_length_required', {
+            method: request.method,
+            path,
+          });
+        }
         return new Response(null, { status: 411 });
       }
       if (declared > 0 && inFlightBytes + declared > IN_FLIGHT_MAX_BYTES) {
@@ -152,7 +154,7 @@ const server = serve(
             inFlightBytes += chunk.byteLength;
             reserved += chunk.byteLength;
             if (inFlightBytes > IN_FLIGHT_MAX_BYTES) {
-              if (throttled('in_flight', 60_000, Date.now())) {
+              if (throttled('in_flight', NOISE_LOG_WINDOW_MS, Date.now())) {
                 log('warn', 'in_flight_bytes_exceeded', { inFlightBytes });
               }
               controller.error(new Error('in_flight_bytes_exceeded'));
@@ -229,6 +231,12 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 function fatal(evt: string, error: unknown): void {
   lifecycle.drain();
   log('fatal', evt, { error: String(error) });
+  // No drain is attempted on a crash, so everything still queued is lost; name it
+  // the way shutdown does, with delivery ids for pull request jobs that have no sha.
+  const lost = tier.snapshot();
+  if (lost.jobs > 0) {
+    log('error', 'jobs_lost', { count: lost.jobs, shas: lost.shas, deliveries: lost.deliveryIds });
+  }
   setTimeout(() => process.exit(1), FATAL_FLUSH_MS);
 }
 

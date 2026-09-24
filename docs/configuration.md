@@ -71,7 +71,10 @@ names only:
 | Rule | Failure message names |
 |---|---|
 | Every `githubTokenEnv`, `webhookSecretEnv` and `chatbotKeyEnv` must name a variable that is actually set | the variable and the route field that named it |
-| A route's `webhookSecretEnv` value obeys the same 32-character floor and published-literal denylist as the global secret | the variable |
+| A route's `webhookSecretEnv` value obeys the same 32-character floor, 1024-character cap and published-literal denylist as the global secret | the variable |
+| A route's `webhookSecretEnv` value differs from `GITHUB_WEBHOOK_SECRET` and from every other route's secret | the variable and the one it duplicates, never the value |
+| Every chatbot key (flat, from `BASECAMP_LINES_URL`, inline, or via `chatbotKeyEnv`) matches `^[A-Za-z0-9_-]+$` | the variable or field, never the key |
+| A route that an earlier route always matches first (same pattern, an earlier `**` or `*/*`, a literal the earlier glob accepts, or `owner/*` above `owner/x`) is refused | both routes |
 | `ENRICH_DEADLINE_MS` ≥ `GITHUB_TIMEOUT_MS * 3 + 8000` | both numbers and the value to raise it to |
 | At least one complete target (`accountId`, `bucketId`, `chatId`, key) must resolve | each missing flat variable, and the route field that could have supplied it |
 | `REQUIRE_LINE_STATS` may not be true while `FETCH_LINE_STATS` resolves to off | which of the two to change |
@@ -133,7 +136,7 @@ values come from: [Basecamp setup](./basecamp-setup.md).
 | `CONFIG_FILE` | no | no | *(none)* | **Node only.** Path to the same JSON as a file. Unset means no file is read; there is no implicit `./config.json` |
 | `BRANCHES` | no | no | `**` | Global branch allowlist, comma-separated globs. `**`, the default, means every branch. **Case-sensitive**: git refs are |
 | `TAGS` | no | no | *(empty)* | Tag allowlist, matched against the ref with `refs/tags/` stripped. **Empty means no tag push is ever relayed.** Tags are never matched against `BRANCHES` |
-| `REPO_ALLOWLIST` | no | no | *(empty)* | `owner/repo` globs, evaluated **before** routing. Empty accepts any correctly-signed repo and logs `warn repo_allowlist_open` once at boot. **Case-insensitive** |
+| `REPO_ALLOWLIST` | no | no | *(empty)* | `owner/repo` globs, evaluated **before** routing. Empty accepts any correctly-signed repo and logs `warn repo_allowlist_open` once at boot. A value that lists nothing, such as `,`, is a validation error. **Case-insensitive** |
 | `SKIP_FORCED_PUSHES` | no | no | `false` | At the default, a `forced: true` push posts one rollup message labelled as a force push, never per-commit tables, because a rebase gives every commit a new SHA and SHA dedup cannot stop the double-announce. Set it to `true` to post nothing at all, logged `push_skipped { reason: "forced_push" }` |
 | `SKIP_MERGE_COMMITS` | no | no | `true` | A merge commit's API diff is first-parent, i.e. the whole merged branch. With this on, a PR merge **still posts every branch commit**: only the merge commit itself is suppressed |
 | `SKIP_NON_DISTINCT` | no | no | `true` | Drops commits delivered with `distinct: false` (already announced on another ref in this repo) |
@@ -147,14 +150,14 @@ values come from: [Basecamp setup](./basecamp-setup.md).
 | `CONTENT_MAX_BYTES` | no | no | `32768` | Ceiling on the assembled `content` string in UTF-8 bytes after escaping. **Basecamp documents no content limit; this is a self-imposed legibility budget** |
 | `ENRICH_DEADLINE_MS` | no | no | `45000` | After this, a pending enrichment is aborted and force-promoted with `stats: null`. Boot rejects any value below `GITHUB_TIMEOUT_MS * 3 + 8000` |
 | `POST_RETRY_BUDGET_MS` | no | no | `20000` | Total 5xx retry wall-time per message. 429 sleeps do **not** draw on it |
-| `RATELIMIT_WAIT_BUDGET_MS` | no | no | `60000` | The separate budget 429 and `x-ratelimit` sleeps **do** draw on, per message. A 429 is the service pacing us correctly, not an error; when this budget is exhausted the message is re-queued rather than dropped |
-| `MAX_QUEUE_DEPTH` | no | no | `500` | **Node only.** Maximum push jobs held in the in-process FIFO. Beyond it the newest job is refused with `warn queue_full` and the webhook still answers 202, because a 5xx would strand the delivery. Workers has a real queue and ignores this |
+| `RATELIMIT_WAIT_BUDGET_MS` | no | no | `60000` | The separate budget 429 and `x-ratelimit` sleeps **do** draw on, per message. A 429 is the service pacing us correctly, not an error; when this budget is exhausted, Workers re-queues the message (up to 5 deferrals) and Node drops it with `error message_dropped` naming the next unposted commit |
+| `MAX_QUEUE_DEPTH` | no | no | `500` | **Node only.** Maximum push jobs held in the in-process FIFO. Beyond it the newest job is refused with `error queue_overflow` and the webhook answers 503 with `Retry-After`, so GitHub records a failed delivery you can redeliver. Workers has a real queue and ignores this |
 | `MAX_QUEUE_BYTES` | no | no | `33554432` | **Node only.** The same bound counted in bytes. Whichever ceiling is hit first refuses the job |
 | `DEDUP_MAX_ENTRIES` | no | no | `10000` | Bound on the delivery-id dedup store. An LRU: a flood degrades dedup accuracy instead of memory |
 | `DEDUP_TTL_HOURS` | no | no | `72` | How long a delivery id is remembered. GitHub's manual redelivery window is 3 days, so a redelivered push is recognised as a duplicate for exactly as long as it can be redelivered |
 | `DROP_ALERT_WINDOW_MS` | no | no | `300000` | Rolling window over which dropped jobs are counted. One `error jobs_dropped` per window with the count, instead of one line per drop |
 | `MAX_BODY_BYTES` | no | no | `26214400` | 25 MiB, just above GitHub's 25 MB payload cap. Enforced by a body limit **and** by a running counter over the request stream, so a chunked upload is cut off mid-flight rather than measured after buffering |
-| `RATE_LIMIT_PER_MINUTE` | no | no | `120` | Per-IP cap on the webhook path, applied **before** HMAC. A global bucket at 100x this value runs alongside it, split by signature shape so unsigned traffic cannot deny a signed delivery |
+| `RATE_LIMIT_PER_MINUTE` | no | no | `120` | Per-IP cap on the webhook path, applied **before** HMAC. A delivery that passes HMAC gets its token back, so only requests that fail verification count against it. A global bucket at 100x this value runs alongside it, split by signature shape so unsigned traffic cannot deny a signed delivery |
 | `TRUSTED_PROXY_HOPS` | no | no | `0` | **Node only** (Workers uses `CF-Connecting-IP`). How many `X-Forwarded-For` entries to skip **from the right**; `0` means use the socket address and ignore the header entirely. Range 0-8 |
 | `WEBHOOK_PATH` | no | no | `/webhook` | Receiver path; must be an absolute path |
 | `PORT` | no | no | `3000` | **Node only.** Injected by Railway and most PaaS platforms. Left unprefixed for exactly that reason |
@@ -178,10 +181,10 @@ and on Node, and they are what actually stops the common case:
 Best-effort, on top of those. The commit dedup key is
 `repo|sha|bucketId|chatId` and deliberately omits the ref, so a repeated SHA is
 skipped whatever branch carries it, for `DEDUP_TTL_HOURS`. On Node that is one
-process and it holds. **On Workers the dedup map is per-isolate**, so two queue
-messages handled by two isolates do not share it; there, the delivery-id dedup
-is the protection that is robust, and it works because GitHub reuses the
-delivery id on redelivery.
+process and it holds. **On Workers both dedup maps are per-isolate**, commit and
+delivery-id alike, so two queue messages handled by two isolates share neither;
+a redelivery that lands on a different isolate can post again. The delivery id,
+which GitHub reuses on redelivery, is scoped to the repository.
 
 Two cases are not suppressed, by design rather than by oversight:
 
@@ -357,7 +360,7 @@ one test suite.
 | `routes[].target` | **Shallow-merged over `defaults.target`**, which is itself shallow-merged over the flat `BASECAMP_*` variables. A route may override only `chatId` and inherit the rest. Merge is one level deep |
 | `chatbotKey` vs `chatbotKeyEnv` | `chatbotKeyEnv` names a variable holding the key and is what `config.example.json` uses. Inline `chatbotKey` still works but logs `warn chatbotkey_inline_in_config` at boot: it puts an unexpiring, unrotatable room-posting credential into a file. Setting both is a schema error |
 | `routes[].githubTokenEnv` | Names that route's token variable; must match `^GITHUB_TOKEN_[A-Z0-9_]+$`. Boot **fails** if it is unset. There is deliberately no fallback to the global `GITHUB_TOKEN`: a typo must not silently defeat the isolation the field exists to provide |
-| `routes[].githubApiBase` | Per-route API host, `https://` only, defaulting to `GITHUB_API_BASE`. Required when one deployment relays both github.com and a GHES instance |
+| `routes[].githubApiBase` | Per-route API host, `https://` only, no embedded credentials, defaulting to `GITHUB_API_BASE`. Required when one deployment relays both github.com and a GHES instance |
 | `routes[].webhookSecretEnv` | Names that route's webhook secret; must match `^GITHUB_WEBHOOK_SECRET_[A-Z0-9_]+$`. Omitted means the global `GITHUB_WEBHOOK_SECRET` verifies that route. **Required in practice for any multi-room deployment spanning trust levels**, because one shared secret lets any repo that holds it forge a push for any other route's repo. The signature is verified against the secret of the route matched by `repository.full_name` |
 | Per-route overrides | `skipMergeCommits`, `skipForcedPushes`, `skipNonDistinct`, `ignoreAuthors`, `maxCommitsPerPush` (1-100) each fall back to the global variable when omitted |
 | `fallthrough` | `"ignore"` (default) drops an unmatched repo with an `info` log. `"defaults"` sends it to `defaults.target`, still filtered by `defaults.branches` and still subject to `REPO_ALLOWLIST`, which is evaluated **before** routing |

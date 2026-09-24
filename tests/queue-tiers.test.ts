@@ -3,7 +3,7 @@ import { CfQueueTier, capOversizeJob } from '../src/queue/adapters/cf-queue.ts';
 import { MemoryFifoTier } from '../src/queue/adapters/memory-fifo.ts';
 import { WaitUntilTier } from '../src/queue/adapters/cf-waituntil.ts';
 import { consumeJob } from '../src/queue/consumer.ts';
-import { Dedup } from '../src/relay/dedup.ts';
+import { Dedup, deliveryKey } from '../src/relay/dedup.ts';
 import { MemoryStore } from '../src/queue/adapters/store-memory.ts';
 import { queuedJobSchema } from '../src/queue/queued-job-schema.ts';
 import type { Deps } from '../src/runtime/deps.ts';
@@ -263,8 +263,8 @@ describe('consumeJob delivery dedup', () => {
     const lines: Line[] = [];
     const deps = depsWith(lines);
     const store = dedup();
-    store.recordDelivery('done', 'completed');
-    store.recordDelivery('half', 'failed');
+    store.recordDelivery(deliveryKey('your-org/your-repo', 'done'), 'completed');
+    store.recordDelivery(deliveryKey('your-org/your-repo', 'half'), 'failed');
 
     const skipped = await consumeJob(makeJob({ deliveryId: 'done' }), deps, { dedup: store });
     expect(skipped).toEqual({ posted: 0, failed: 0, skipped: 0, dropped: 0 });
@@ -277,7 +277,7 @@ describe('consumeJob delivery dedup', () => {
       { dedup: store },
     );
     expect(reprocessed).toEqual({ posted: 0, failed: 0, skipped: 0, dropped: 0 });
-    expect(store.deliveryOutcome('half')).toBe('completed');
+    expect(store.deliveryOutcome(deliveryKey('your-org/your-repo', 'half'))).toBe('completed');
   });
 });
 
@@ -295,6 +295,23 @@ describe('MemoryFifoTier pull request drain', () => {
     await tier.enqueue(pullRequestJob({ deliveryId: 'pr-drain' }));
     const report = await tier.drain(100);
     expect(report).toMatchObject({ jobs: 1, remaining: [] });
+  });
+
+  it('snapshots queued shas and delivery ids synchronously, for the crash path', async () => {
+    const tier = new MemoryFifoTier({
+      deps: depsWith([]),
+      maxDepth: 10,
+      maxBytes: 10_000_000,
+      // Never settles, so both jobs stay queued behind the first.
+      run: () => new Promise(() => {}),
+    });
+    await tier.enqueue(makeJob({ deliveryId: 'push-1', commits: [commit('a'), commit('b')] }));
+    await tier.enqueue(pullRequestJob({ deliveryId: 'pr-1' }));
+
+    const snap = tier.snapshot();
+    expect(snap.jobs).toBe(2);
+    expect(snap.deliveryIds).toEqual(['push-1', 'pr-1']);
+    expect(snap.shas).toHaveLength(2);
   });
 });
 

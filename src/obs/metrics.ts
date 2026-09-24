@@ -28,6 +28,9 @@ export interface Metrics {
   noteDrop(now: number): boolean;
   /** Drops recorded inside the window the last `noteDrop` opened. */
   dropsInWindow(now: number): number;
+  /** Records a Basecamp target's latest outcome. `configHealthy` is 0 while any
+   *  target's latest outcome is terminal, so fixing that room clears it without a restart. */
+  noteTargetHealth(target: string, healthy: boolean): void;
 }
 
 const COUNTERS: readonly MetricCounter[] = [
@@ -65,6 +68,7 @@ export function createMetrics(initialDropWindowMs = 300_000): MetricsStore {
   // until something says otherwise.
   values.configHealthy = 1;
 
+  const terminalTargets = new Set<string>();
   let dropWindowMs = initialDropWindowMs;
   let windowStart = 0;
   let windowCount = 0;
@@ -94,6 +98,11 @@ export function createMetrics(initialDropWindowMs = 300_000): MetricsStore {
     dropsInWindow(now) {
       if (windowCount === 0 || now - windowStart >= dropWindowMs) return 0;
       return windowCount;
+    },
+    noteTargetHealth(target, healthy) {
+      if (healthy) terminalTargets.delete(target);
+      else terminalTargets.add(target);
+      values.configHealthy = terminalTargets.size === 0 ? 1 : 0;
     },
     recentDrops(windowMs, now) {
       return values.lastDropAt > 0 && now - values.lastDropAt < windowMs;

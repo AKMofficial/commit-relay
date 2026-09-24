@@ -98,6 +98,14 @@ export function createLogger(options: LoggerOptions): LogFn {
   };
 }
 
+/** Keys are per repo, so the map is capped like the webhook's auth-collapse map. */
+export const THROTTLE_MAX_KEYS = 10_000;
+
+/** Pre-auth and overload lines, which a caller can trigger at request rate. */
+export const NOISE_LOG_WINDOW_MS = 60_000;
+/** Credential failures, once per repo per hour (14.2). */
+export const AUTH_LOG_WINDOW_MS = 3_600_000;
+
 const lastEmitted = new Map<string, number>();
 
 /**
@@ -107,6 +115,12 @@ const lastEmitted = new Map<string, number>();
 export function throttled(key: string, windowMs: number, now: number): boolean {
   const previous = lastEmitted.get(key);
   if (previous !== undefined && now - previous < windowMs) return false;
+  // Re-inserting moves the key to the end, so the first key is the oldest.
+  lastEmitted.delete(key);
+  if (lastEmitted.size >= THROTTLE_MAX_KEYS) {
+    const oldest = lastEmitted.keys().next().value;
+    if (oldest !== undefined) lastEmitted.delete(oldest);
+  }
   lastEmitted.set(key, now);
   return true;
 }

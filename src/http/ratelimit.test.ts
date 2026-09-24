@@ -98,27 +98,26 @@ describe('createRateLimiter', () => {
 });
 
 describe('credit: the verified-delivery refund', () => {
-  it('returns the global token but never the per-IP one', () => {
+  it('returns both the global and the per-IP token, so verified traffic is never limited', () => {
     // perMinute 2 -> per-IP capacity 2, global capacity 2 * multiplier.
     const limiter = createRateLimiter({ perMinute: 2, now: () => 0, globalMultiplier: 1 });
 
-    expect(limiter.check('ip-a', true).allowed).toBe(true);
-    limiter.credit(true);
-    expect(limiter.check('ip-a', true).allowed).toBe(true);
-    limiter.credit(true);
+    for (let i = 0; i < 10; i += 1) {
+      expect(limiter.check('github-ip', true).allowed).toBe(true);
+      limiter.credit('github-ip', true);
+    }
 
-    // Per-IP allowance is gone after two requests, refunds notwithstanding.
-    const third = limiter.check('ip-a', true);
+    // Unverified requests from the same address are still charged.
+    expect(limiter.check('github-ip', true).allowed).toBe(true);
+    expect(limiter.check('github-ip', true).allowed).toBe(true);
+    const third = limiter.check('github-ip', true);
     expect(third.allowed).toBe(false);
     expect(third.scope).toBe('ip');
-
-    // Global capacity is 2 here, so a third IP passing proves the refund happened.
-    expect(limiter.check('ip-b', true).allowed).toBe(true);
   });
 
   it('cannot mint allowance by crediting more than was spent', () => {
     const limiter = createRateLimiter({ perMinute: 1, now: () => 0, globalMultiplier: 1 });
-    for (let i = 0; i < 10; i += 1) limiter.credit(true);
+    for (let i = 0; i < 10; i += 1) limiter.credit('ip-a', true);
     expect(limiter.check('ip-a', true).allowed).toBe(true);
     expect(limiter.check('ip-a', true).allowed).toBe(false); // clamped at capacity
   });

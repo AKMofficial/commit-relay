@@ -41,7 +41,7 @@ defends against and how.
 | **Timing attack on signature comparison** | Constant-time by construction: `crypto.subtle.verify` instead of sign-then-compare. A grep invariant forbids `===`/`!==` where either operand's identifier contains `token`, `secret`, `digest`, or `signature`. |
 | **Replay**: GitHub's signature carries no timestamp | TLS prevents capture. `X-GitHub-Delivery` is *not* covered by the HMAC and is therefore not a replay control. Dedup keys on `(repo, sha, bucketId, chatId)`, derived entirely from signed bytes. No freshness window ships; the worst case of a successful replay is a duplicate chat line. |
 | **HTML injection into a private chat room**: a contributor writes markup into a commit subject, a branch name, or `git config user.name` | Fixed render order: sanitize → truncate the source → escape (`& < > " '`) → insert `<br>`. Every payload-derived value passes `escapeHtml` with no exception, enforced by a grep invariant over `src/render/`. |
-| **Bidi / invisible-character spoofing** | `sanitizeText()` runs on every payload-derived string: repo name, author, branch, ref, message: stripping C0/C1, U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FEFF, then `normalize('NFC')`. Truncation is by code point, never `.length`. |
+| **Bidi / invisible-character spoofing** | `sanitizeText()` runs on every payload-derived string: repo name, author, branch, ref, message: stripping every control and format character (C0/C1, zero-width, bidi, U+FEFF, the tag block), every other default-ignorable code point (Hangul fillers, variation selectors, the combining grapheme joiner) and the braille blank, mapping U+2028/U+2029 to LF, then `normalize('NFC')`. A branch or base ref that sanitizing would change is not routed at all, so `ma<U+200B>in` can never match a `main` allowlist. Truncation is by code point, never `.length`. |
 | **Link injection via an attribute** | Every value entering an `href` also passes `safeUrl()`: scheme must be `https:` and the origin must equal the configured GitHub web origin. On failure the value renders as escaped plain text with no link. |
 | **Secret leakage into logs**: `BASECAMP_CHATBOT_KEY` is a URL path segment, so logging a URL leaks it | Shape-based redaction applied to the serialized NDJSON string inside the logger, so no field name can bypass it. |
 | **Secret leakage into error bodies** | `sanitizeBasecampError()` rebuilds the message from `{status, statusText}` rather than wrapping the original; response bodies are drained but never embedded. |
@@ -70,8 +70,9 @@ These are not technical controls this service can provide. They are yours.
 - **Use per-route secrets** for any multi-room deployment that spans trust levels.
 - **Serve over TLS only** and keep the receiver's URL out of public places; the URL is not
   a secret, but obscurity costs nothing.
-- **Protect `/healthz`** with `HEALTH_TOKEN` if the deployment's health output would tell a
-  stranger anything about your configuration.
+- **`/healthz` is public by design.** It names missing config keys (never values) and says
+  when Basecamp rejected the chatbot key, so uptime monitors can see it. `HEALTH_TOKEN` gates
+  only `/health/detail`; restrict `/healthz` at your proxy if that disclosure matters.
 - **Watch your logs' destination.** Redaction is shape-based and good, but a log sink with
   wider access than the chat room widens the blast radius of everything above.
 
@@ -97,6 +98,23 @@ Documented, not fixed. Each is a deliberate decision.
 - **The chatbot key is a bearer credential in a URL path.** That is Basecamp's integration
   design, not a choice this project makes. Redaction covers the logs; the key's presence
   in the request line is inherent.
+- **Per-route secrets multiply pre-auth HMAC work.** An unsigned request is verified
+  against the secret of the route its claimed repo matches, so each route secret is one
+  HMAC per request; the rate limiter bounds it.
+- **Forged, well-shaped signatures can drain the signed global bucket.** `/64` keying
+  bounds a single IPv6 host, not a distributed sender, and legitimate deliveries share
+  that bucket.
+- **Rate limiting and replay dedup are per isolate, in memory.** A captured signed
+  delivery can be replayed to another isolate or after a restart. The Workers target
+  also has no memory bound across requests beyond the platform's own.
+- **Author filters are noise filters, not authorization.** `IGNORE_AUTHORS` and the bot
+  filter match author fields that the pusher controls.
+- **The author row trusts GitHub's email-to-username mapping.** A commit shows whoever
+  GitHub links the commit email to; it is not a signature check.
+- **A merge commit can post when line stats are unavailable.** Merge detection falls back
+  to the payload hint only in that case.
+- **A blank `REPO_ALLOWLIST=` accepts any correctly signed repository.** Boot logs
+  `warn repo_allowlist_open`; set it for any multi-tenant deployment.
 
 ## Supply chain controls
 
@@ -109,7 +127,8 @@ Documented, not fixed. Each is a deliberate decision.
 - Dependabot 7-day cooldown on npm, github-actions, and docker updates.
 - Every action pinned to a 40-hex SHA with `persist-credentials: false` on every checkout.
 - `dependency-review` on pull requests.
-- gitleaks over full history.
+- gitleaks over full history, test files included; only named invented values are allowlisted.
+- Every Docker base image, including the release job's QEMU `binfmt` image, pinned by `@sha256` digest.
 - Blocking `pnpm audit --audit-level=high`.
 
 ## Rotating the chatbot key

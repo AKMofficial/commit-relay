@@ -241,6 +241,9 @@ export function decidePullRequest(
     return { kind: 'skip', reason, matchedRoute, ...(patternsTried ? { patternsTried } : {}) };
   };
 
+  // Parse blanks a base ref the sanitizer would have rewritten.
+  if (event.baseRef.length === 0) return skip('skip_not_a_ref', null);
+
   const decision = routing.matchRoute(event.repoFullName, ref);
   if (!isRouteMatch(decision)) {
     // The base branch failed the branch allowlist, which for a pull request is

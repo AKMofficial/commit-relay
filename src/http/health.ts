@@ -1,5 +1,6 @@
 import { tryGetConfig } from '../config/load.ts';
 import { readValue } from '../config/env.ts';
+import { healthTokenValue } from '../config/schema.ts';
 import type { EnvSource } from '../config/env.ts';
 import type { LoadOptions } from '../config/load.ts';
 import type { MetricName } from '../obs/metrics.ts';
@@ -140,8 +141,13 @@ export async function healthDetail(
   const result = tryGetConfig(source, options);
   // 14.5 conditions the 404 solely on HEALTH_TOKEN being unset: an operator needs
   // the gauges most when an unrelated key fails, so read the token from source.
-  const expected = result.ok ? result.config.HEALTH_TOKEN : readValue(source, 'HEALTH_TOKEN');
-  if (expected === undefined) return NOT_FOUND;
+  const raw = result.ok ? result.config.HEALTH_TOKEN : readValue(source, 'HEALTH_TOKEN');
+  if (raw === undefined) return NOT_FOUND;
+  // The fallback skips the config load, and a token too short to pass the schema
+  // is exactly what can make the config invalid, so it must not authenticate anything.
+  const checked = result.ok ? null : healthTokenValue.safeParse(raw);
+  if (checked !== null && (!checked.success || !PRINTABLE_ASCII.test(checked.data))) return UNAUTHORIZED;
+  const expected = checked?.data ?? raw;
 
   const supplied = request.headers.get('x-health-token');
   if (supplied === null || supplied.length > 256 || !PRINTABLE_ASCII.test(supplied)) {

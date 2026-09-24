@@ -251,6 +251,13 @@ describe('the gate ladder', () => {
     return { decision: decidePush(event, routing, { log, deliveryId: DELIVERY }), lines };
   }
 
+  it('does not route a look-alike ref as the branch it imitates', () => {
+    const raw = JSON.parse(mergeRaw) as { ref: string };
+    raw.ref = 'refs/heads/ma\u200Bin';
+    const { decision } = decideEvent(load(JSON.stringify(raw)));
+    expect(decision).toMatchObject({ kind: 'skip', reason: 'skip_not_a_ref' });
+  });
+
   it('rejects a ref that is neither a branch nor a tag', () => {
     const { decision } = decideEvent(withRef(mergeRaw, 'refs/pull/42/merge'));
     expect(decision).toMatchObject({ kind: 'skip', reason: 'skip_not_a_ref' });
@@ -375,6 +382,14 @@ describe('decidePullRequest', () => {
       kind: 'post',
       prKind: 'ready_for_review',
     });
+  });
+
+  it('drops a pull request whose base ref parse blanked as a look-alike', () => {
+    const raw = JSON.parse(prMergedRaw) as { pull_request: { base: { ref: string } } };
+    raw.pull_request.base.ref = 'ma\u200Bin';
+    const { decision, lines } = decidePr(JSON.stringify(raw));
+    expect(decision).toMatchObject({ kind: 'skip', reason: 'skip_not_a_ref' });
+    expect(prSkipReasons(lines)).toEqual(['skip_not_a_ref']);
   });
 
   it('separates a merged pull request from one closed without merging', () => {

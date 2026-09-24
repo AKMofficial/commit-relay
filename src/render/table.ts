@@ -3,8 +3,8 @@
 // The markup primitives every table shares, so the commit, rollup and pull
 // request builders cannot drift on a trailing <br> or an escaping rule.
 import { escapeHtml } from '../core/escape.ts';
-import { byteLength, contentBytes } from '../core/bytes.ts';
-import { clipCodePoints, clipHtmlToBytes } from './truncate.ts';
+import { contentBytes } from '../core/bytes.ts';
+import { clipCodePoints } from './truncate.ts';
 import { sanitizeText } from '../security/sanitize.ts';
 import { safeUrl } from '../security/safe-url.ts';
 import { S } from './strings.ts';
@@ -37,25 +37,6 @@ export const UNAVAILABLE = 'N/A';
 
 export function fitsContent(html: string, maxBytes: number): boolean {
   return contentBytes(html) <= maxBytes;
-}
-
-/** Binary-search the largest HTML prefix whose JSON envelope fits maxBytes. Budget 0 always fits. */
-export function clipHtmlToContent(html: string, maxBytes: number): string {
-  if (fitsContent(html, maxBytes)) return html;
-  let lo = 0;
-  let hi = byteLength(html);
-  let best = clipHtmlToBytes(html, 0);
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const candidate = clipHtmlToBytes(html, mid);
-    if (fitsContent(candidate, maxBytes)) {
-      best = candidate;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return best;
 }
 
 /** A two-column label/value row. The trailing <br>\n is load-bearing. */

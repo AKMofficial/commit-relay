@@ -247,7 +247,7 @@ Branch and tag matching is **case-sensitive**, because git refs are; repository 
 
 **Footprint.** On Workers there is no resident process: the working set is one push payload plus the rendered strings, roughly 50-200 KB for a typical 3-commit push. The Node container runs at **55-70 MB** steady state and around 90 MB peak under `--max-old-space-size=128 --max-semi-space-size=4`. The image is ~250 MB uncompressed, ~55 MB compressed, dominated by `node:24-alpine`; the application has two runtime dependencies and no transitive tree.
 
-**Pin by digest in production.** The quickstart pins `:1` so patch releases arrive on their own; a production deployment should pin the digest instead:
+**Pin by digest in production.** The quickstart pins `:0.1` so patch releases arrive on their own; a production deployment should pin the digest instead:
 
 ```bash
 docker pull ghcr.io/akmofficial/commit-relay@sha256:<digest>
@@ -259,7 +259,7 @@ Every release image ships a Sigstore-signed SLSA provenance attestation:
 gh attestation verify oci://ghcr.io/akmofficial/commit-relay:0.1.0 --repo AKMofficial/commit-relay
 ```
 
-**Reverse proxy and healthchecks.** Put TLS in front of the container, GitHub webhooks should never be sent over plaintext, and set `TRUSTED_PROXY_HOPS` to the number of proxies that append to `X-Forwarded-For`, counted from the right. `GET /healthz` returns 200 when configuration is valid and Basecamp is reachable, 500 on invalid configuration naming the missing keys, and 503 on a terminal Basecamp condition such as a rotated chatbot key. `GET /health/detail` needs `HEALTH_TOKEN` and 404s without it. On Railway the healthcheck is a **deploy gate only**, *"Railway does not monitor the healthcheck endpoint after the deployment has gone live"*, so point your own monitor at `/healthz` too.
+**Reverse proxy and healthchecks.** Put TLS in front of the container, GitHub webhooks should never be sent over plaintext, and set `TRUSTED_PROXY_HOPS` to the number of proxies that append to `X-Forwarded-For`, counted from the right. `GET /healthz` returns 200 when configuration is valid and Basecamp is reachable, 500 on invalid configuration naming the missing keys, and 503 while any room's latest post got a terminal Basecamp status such as a rotated chatbot key; the next successful post to that room clears it. On Workers each isolate keeps its own status, so `/healthz` may not reflect a failure seen by the queue consumer. `GET /health/detail` needs `HEALTH_TOKEN` and 404s without it. On Railway the healthcheck is a **deploy gate only**, *"Railway does not monitor the healthcheck endpoint after the deployment has gone live"*, so point your own monitor at `/healthz` too.
 
 **Leave Railway Serverless disabled.** *"The first request sent to a slept service may return a 502 Bad Gateway"* ([docs](https://docs.railway.com/reference/app-sleeping)). Against a 10-second GitHub timeout with no automatic redelivery, that is not a slow request, it is a silently lost push. Keep `sleepApplication: false` in `railway.json`, which overrides the dashboard, and raise `drainingSeconds` above `SHUTDOWN_DRAIN_MS`, Railway's default grace period is 0 seconds, so an in-process queue otherwise loses everything on every redeploy.
 
@@ -293,7 +293,7 @@ Every row below ends the same way: GitHub's **Settings → Webhooks → Recent D
 
 **Monorepos?** They work, but there is no path filter: every commit on an allowlisted branch posts. Narrow with `BRANCHES` and `IGNORE_AUTHORS`.
 
-**PR and issue events?** No. Push only. Adding event types would mean a second renderer and a second set of failure modes for a different product.
+**PR and issue events?** Pull requests yes: opened, merged, closed, reopened, ready for review, and reviewed. Issues and other events no; each new event type is another renderer and another set of failure modes.
 
 **What does it cost to run?** On Workers Free, effectively nothing: duration is not charged, there is no resident process, and Queues are included at 10,000 operations/day. A container is the price of the smallest instance your platform sells, 24/7, whether or not anyone pushes.
 
@@ -313,7 +313,7 @@ Every row below ends the same way: GitHub's **Settings → Webhooks → Recent D
 ## Contributing · Security · License
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md): how to run the tests and what CI enforces.
-- [docs/INVARIANTS.md](./docs/INVARIANTS.md): the five source rules CI greps for, and why each exists.
+- [docs/INVARIANTS.md](./docs/INVARIANTS.md): the six source rules CI greps for, and why each exists.
 - [SECURITY.md](./SECURITY.md): supported versions and how to report a vulnerability privately.
 - [LICENSE](./LICENSE): MIT.
 

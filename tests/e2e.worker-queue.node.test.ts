@@ -160,6 +160,32 @@ describe('the queue handler on a Basecamp 429', () => {
     expect(serialized).not.toContain('githubToken');
   });
 
+  it('retries the original, never acks it, when the re-enqueue send rejects', async () => {
+    basecamp = await startBasecamp('7');
+    const lines: Array<Record<string, unknown>> = [];
+    vi.spyOn(console, 'log').mockImplementation((text: unknown) => {
+      lines.push(JSON.parse(String(text)) as Record<string, unknown>);
+    });
+    const env = {
+      ...ENV,
+      BASECAMP_API_BASE: `http://127.0.0.1:${String(basecamp.port)}`,
+      COMMITS: {
+        send: () => Promise.reject(new Error('queue quota exceeded')),
+      },
+    };
+    const { batch: b, message } = batch(rollupQueued(), 1);
+
+    await worker.queue(b as QueueBatch, env as unknown as QueueEnv);
+
+    expect(message.acks).toBe(0);
+    expect(message.retries).toEqual([{ delaySeconds: 7 }]);
+    expect(lines.find((line) => line['evt'] === 'queue_resend_failed')).toMatchObject({
+      lvl: 'error',
+      repo: 'your-org/your-repo',
+      resumeAtSeq: 0,
+    });
+  });
+
   it('logs queue_redelivery with the attempt on a redelivered message', async () => {
     basecamp = await startBasecamp('3');
     const lines: Array<Record<string, unknown>> = [];
@@ -213,15 +239,19 @@ describe('the queue handler on a Basecamp 429', () => {
       lines.push(JSON.parse(String(text)) as Record<string, unknown>);
     });
     const env = { ...ENV, COMMITS: { send: () => {} } };
-    const { batch: b, message } = batch({ garbage: true }, 1);
+    const { batch: b, message } = batch({ garbage: true, deliveryId: 'd-1', repoFullName: 'your-org/your-repo' }, 1);
 
     await worker.queue(b as QueueBatch, env as unknown as QueueEnv);
 
     expect(message.acks).toBe(1);
     expect(lines.find((line) => line['evt'] === 'queue_message_invalid')).toMatchObject({
       lvl: 'error',
+      reason: 'queue_message_invalid',
+      delivery: 'd-1',
+      repo: 'your-org/your-repo',
       attempt: 1,
     });
+    expect(lines.some((line) => line['evt'] === 'jobs_dropped')).toBe(true);
   });
 
   it('acks when the route no longer matches and logs route_vanished', async () => {

@@ -24,10 +24,17 @@ import {
   type PushDecision,
 } from '../github/filter.ts';
 import { parsePullRequest, parsePullRequestReview, parsePush } from '../github/parse.ts';
-import { loggerFor, payloadsEnabled, type Target } from '../obs/log.ts';
+import {
+  AUTH_LOG_WINDOW_MS,
+  loggerFor,
+  NOISE_LOG_WINDOW_MS,
+  payloadsEnabled,
+  throttled,
+  type Target,
+} from '../obs/log.ts';
 import { QueueFullError, type AsyncTier } from '../queue/types.ts';
 import { verifySignature } from '../security/hmac.ts';
-import { resolveClientIp } from './clientip.ts';
+import { rateLimitKey, resolveClientIp } from './clientip.ts';
 import { healthDeps } from './health.ts';
 import { createRateLimiter, type RateLimiter } from './ratelimit.ts';
 
@@ -36,7 +43,6 @@ import { createRateLimiter, type RateLimiter } from './ratelimit.ts';
 const SIGNATURE_SHAPE = /^sha256=[0-9a-f]{64}$/;
 const DELIVERY_ID = /^[0-9a-fA-F-]{1,64}$/;
 
-const AUTH_COLLAPSE_MS = 3_600_000;
 
 /** The collapse map is keyed on attacker-chosen data in the pre-auth path, so it
  *  is bounded exactly like the dedup maps of 11.1. */
@@ -255,12 +261,12 @@ export function createWebhookHandler(options: WebhookOptions): WebhookHandler {
    *  repo where known and otherwise the IP, the only thing knowable pre-auth. */
   function shouldLogAuthFailure(ip: string, at: number): boolean {
     const last = authLoggedAt.get(ip);
-    if (last !== undefined && at - last < AUTH_COLLAPSE_MS) return false;
+    if (last !== undefined && at - last < AUTH_LOG_WINDOW_MS) return false;
     if (authLoggedAt.size >= AUTH_MAX_KEYS) {
       // An entry past the window can no longer suppress anything, so dropping it
       // is free; if none has expired the oldest insertion goes instead.
       for (const [key, when] of authLoggedAt) {
-        if (at - when >= AUTH_COLLAPSE_MS) authLoggedAt.delete(key);
+        if (at - when >= AUTH_LOG_WINDOW_MS) authLoggedAt.delete(key);
       }
       if (authLoggedAt.size >= AUTH_MAX_KEYS) {
         const oldest = authLoggedAt.keys().next();
@@ -321,9 +327,13 @@ export function createWebhookHandler(options: WebhookOptions): WebhookHandler {
     // The free shape test decides which global half pays; the refund after gate 4
     // is what actually protects verified traffic (see ratelimit.ts).
     const signed = SIGNATURE_SHAPE.test(request.headers.get('x-hub-signature-256') ?? '');
-    const decision = limiter.check(ip, signed);
+    const limitKey = rateLimitKey(ip);
+    const decision = limiter.check(limitKey, signed);
     if (!decision.allowed) {
-      log('warn', 'rate_limited', { ip, scope: decision.scope });
+      // One line per window, not per refused request, or the flood writes the logs.
+      if (throttled('rate_limited', NOISE_LOG_WINDOW_MS, now())) {
+        log('warn', 'rate_limited', { ip, scope: decision.scope });
+      }
       return {
         response: new Response(null, {
           status: 429,
@@ -338,7 +348,7 @@ export function createWebhookHandler(options: WebhookOptions): WebhookHandler {
       cfg,
       log,
       ip,
-      creditRateLimit: () => { limiter.credit(signed); },
+      creditRateLimit: () => { limiter.credit(limitKey, signed); },
       routing: memo.routing,
       secrets: memo.secrets,
     };
@@ -357,7 +367,13 @@ export function createWebhookHandler(options: WebhookOptions): WebhookHandler {
     // ---- gate 2: content type, prefix-matched on the media type ----
     const contentType = (request.headers.get('content-type') ?? '').trim().toLowerCase();
     if (!contentType.startsWith('application/json')) {
-      log('warn', 'webhook_bad_content_type', { ip, contentType, hint: CONTENT_TYPE_HINT });
+      if (throttled('webhook_bad_content_type', NOISE_LOG_WINDOW_MS, now())) {
+        log('warn', 'webhook_bad_content_type', {
+          ip,
+          contentType: contentType.slice(0, 100),
+          hint: CONTENT_TYPE_HINT,
+        });
+      }
       return new Response('unsupported media type', { status: 415 });
     }
 
@@ -400,7 +416,7 @@ export function createWebhookHandler(options: WebhookOptions): WebhookHandler {
       return new Response('unauthorized', { status: 401 });
     }
 
-    // Verified: refund the global token spent at gate 1. The per-IP token stays spent.
+    // Verified: refund both tokens spent at gate 1, so the limit charges only forgeries.
     creditRateLimit();
 
     // ---------------- trust boundary ----------------

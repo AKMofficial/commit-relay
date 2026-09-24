@@ -4,7 +4,7 @@
 import type { Deps } from '../runtime/deps.ts';
 import { relayPullRequest, relayPush, type RelayOutcome } from '../relay/pipeline.ts';
 import type { RelayJob } from '../core/types.ts';
-import type { Dedup } from '../relay/dedup.ts';
+import { deliveryKey, type Dedup } from '../relay/dedup.ts';
 import { isDeferred } from '../relay/poster.ts';
 
 export type { RelayOutcome };
@@ -26,10 +26,11 @@ export async function consumeJob(
 ): Promise<RelayOutcome> {
   const dedup = options.dedup;
   const attempt = options.attempt ?? 1;
+  const key = deliveryKey(job.repoFullName, job.deliveryId);
 
   // Outcome-aware, never a naive GUID skip: only a completed delivery is
   // swallowed, so the operator's manual Redeliver still works (9.8).
-  if (dedup !== undefined && job.deliveryId !== '' && dedup.shouldSkipDelivery(job.deliveryId)) {
+  if (dedup !== undefined && job.deliveryId !== '' && dedup.shouldSkipDelivery(key)) {
     deps.log('info', 'delivery_duplicate_skipped', {
       repo: job.repoFullName,
       deliveryId: job.deliveryId,
@@ -46,7 +47,7 @@ export async function consumeJob(
     // A deferred push has not finished, so it is recorded `failed`: the retry
     // must be allowed to reprocess it.
     const completed = !isDeferred(outcome) && outcome.failed === 0 && outcome.dropped === 0;
-    dedup.recordDelivery(job.deliveryId, completed ? 'completed' : 'failed');
+    dedup.recordDelivery(key, completed ? 'completed' : 'failed');
   }
 
   return outcome;

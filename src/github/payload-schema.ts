@@ -31,12 +31,15 @@ const repository = z.object({
   owner: z.object({ login: z.string() }),
 });
 
+/** A 40-hex SHA-1 or 64-hex SHA-256 object id. */
+const objectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
+
 const sender = z.object({ login: z.string(), type: z.string() });
 
 export const pushPayload = z.object({
   ref: z.string(),
-  before: z.string(),
-  after: z.string(),
+  before: objectId,
+  after: objectId,
   created: z.boolean(),
   deleted: z.boolean(),
   forced: z.boolean(),

@@ -4,7 +4,7 @@ import { healthDeps, healthDetail, healthz } from './health.ts';
 import { createWebhookHandler, type PreflightResult, type ResolveTier } from './webhook.ts';
 import type { EnvSource } from '../config/env.ts';
 import type { AsyncTier } from '../queue/types.ts';
-import { createLogger } from '../obs/log.ts';
+import { createLogger, NOISE_LOG_WINDOW_MS, throttled } from '../obs/log.ts';
 
 type Preflighted = Extract<PreflightResult, { response: null }>;
 
@@ -13,6 +13,7 @@ type Preflighted = Extract<PreflightResult, { response: null }>;
 const target = typeof (globalThis as { process?: unknown }).process === 'undefined' ? 'workers' : 'node';
 
 const appLog = createLogger({ level: 'error', target });
+const detailLog = createLogger({ level: 'warn', target });
 
 export const app = new Hono<{ Variables: { pre: Preflighted } }>();
 
@@ -63,6 +64,10 @@ app.get('/healthz', (c) => {
 
 app.get('/health/detail', async (c) => {
   const { code, body } = await healthDetail(c.req.raw, c.env as EnvSource, {}, { ...healthDeps(), target });
+  // Collapsed to one line a minute, so a guessing flood is visible but cannot flood the sink.
+  if (code === 401 && throttled('health_detail_unauthorized', NOISE_LOG_WINDOW_MS, Date.now())) {
+    detailLog('warn', 'health_detail_unauthorized', {});
+  }
   return c.json(body, code);
 });
 

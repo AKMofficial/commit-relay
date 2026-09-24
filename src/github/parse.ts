@@ -86,6 +86,25 @@ function capUnits(s: string, max: number): string {
   return clipCodePointUnits(s, max);
 }
 
+/** A ref routes by name, so one the sanitizer would rewrite (`ma<U+200B>in`
+ *  becoming `main`) is blanked instead: it then classifies as no ref at all
+ *  rather than matching an allowlist written for the branch it imitates. NFC is
+ *  applied first so a decomposed (NFD) name, common for refs made on macOS, still routes
+ *  and matches an allowlist written in composed form. Emoji glue is allowed because it
+ *  cannot turn a plain name into a look-alike: a presentation selector after an emoji
+ *  (`fix/❤️`) or in a keycap (`1️⃣`), and a joiner between two emoji (`feat/👩‍💻`). */
+function routableRef(s: string, max: number): string {
+  const nfc = s.normalize('NFC');
+  return sanitizeText(nfc) === nfc.replace(EMOJI_GLUE, '') ? capUnits(nfc, max) : '';
+}
+
+const EMOJI_GLUE =
+  /(?<=\p{Extended_Pictographic})[\uFE0E\uFE0F]|(?<=[0-9#*])\uFE0F(?=\u20E3)|(?<=\p{Extended_Pictographic}[\uFE0F\u{1F3FB}-\u{1F3FF}]?)\u200D(?=\p{Extended_Pictographic})/gu;
+
+/** Only the count is reported, so the union stops growing here; a push that
+ *  reaches it reports no count rather than a false exact one. */
+export const CHANGED_PATHS_CAP = 50_000;
+
 function resolveRepo(
   repository: PushPayload['repository'],
   log: LogFn,
@@ -95,8 +114,8 @@ function resolveRepo(
   const repoParts = splitFullName(repoFullName);
   if (repoParts === null) return null;
 
-  const ownerLogin = sanitizeText(repository.owner.login);
-  const repoName = sanitizeText(repository.name);
+  const ownerLogin = capUnits(sanitizeText(repository.owner.login), 512);
+  const repoName = capUnits(sanitizeText(repository.name), 512);
   if (ownerLogin !== repoParts.owner || repoName !== repoParts.repo) {
     log('warn', 'repo_name_mismatch', {
       repo: repoFullName,
@@ -124,9 +143,12 @@ export function parsePush(raw: unknown, limits: ParseLimits, log: LogFn): ParseR
   const commits: NormalizedCommit[] = [];
   const changedPaths = new Set<string>();
   payload.commits.forEach((commit, index) => {
-    for (const path of commit.added) changedPaths.add(path);
-    for (const path of commit.removed) changedPaths.add(path);
-    for (const path of commit.modified) changedPaths.add(path);
+    for (const paths of [commit.added, commit.removed, commit.modified]) {
+      for (const path of paths) {
+        if (changedPaths.size >= CHANGED_PATHS_CAP) break;
+        changedPaths.add(path);
+      }
+    }
     const id = sanitizeText(commit.id);
     if (!isValidSha(id)) {
       issues.push({ path: `commits[${index}].id`, message: 'is not a 40-character hex commit id.' });
@@ -164,9 +186,9 @@ export function parsePush(raw: unknown, limits: ParseLimits, log: LogFn): ParseR
   return {
     ok: true,
     event: {
-      ref: capUnits(sanitizeText(payload.ref), 2048),
-      before: sanitizeText(payload.before),
-      after: sanitizeText(payload.after),
+      ref: routableRef(payload.ref, 2048),
+      before: payload.before,
+      after: payload.after,
       created: payload.created,
       deleted: payload.deleted,
       forced: payload.forced,
@@ -178,7 +200,7 @@ export function parsePush(raw: unknown, limits: ParseLimits, log: LogFn): ParseR
       senderLogin: capUnits(sanitizeText(payload.sender.login), 2048),
       senderType: capUnits(sanitizeText(payload.sender.type), 2048),
       commits,
-      changedPathCount: changedPaths.size,
+      changedPathCount: changedPaths.size >= CHANGED_PATHS_CAP ? null : changedPaths.size,
     },
   };
 }
@@ -224,7 +246,7 @@ function buildPullRequestEvent(
       htmlUrl: capUnits(sanitizeText(review?.html_url ?? pr.html_url), 2048),
       headRef: capUnits(sanitizeText(pr.head.ref), 512),
       headSha: capUnits(sanitizeText(pr.head.sha), 512),
-      baseRef: capUnits(sanitizeText(pr.base.ref), 512),
+      baseRef: routableRef(pr.base.ref, 512),
       // On a review the Author row names who reviewed, not who opened the pull
       // request, and that is also who IGNORE_AUTHORS is matched against.
       author: capUnits(sanitizeText(review?.user.login ?? pr.user.login), 512),

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { app } from './app.ts';
-import { resolveClientIp } from './clientip.ts';
+import { rateLimitKey, resolveClientIp } from './clientip.ts';
 import { createWebhookHandler, pathnameOf } from './webhook.ts';
 import type { RelayJob } from '../core/types.ts';
 import { asPush } from '../../tests/push-job.ts';
@@ -410,14 +410,14 @@ describe('the size cap', () => {
 });
 
 describe('gate 1: the rate limiter', () => {
-  it('429s the RATE_LIMIT_PER_MINUTE + 1-th request with Retry-After and no verify call', async () => {
-    const verify = vi.fn(async () => true);
+  it('429s the RATE_LIMIT_PER_MINUTE + 1-th unverified request with Retry-After and no verify call', async () => {
+    const verify = vi.fn(async () => false);
     const c = clock();
     const h = handler({ verify, now: c.now, socketAddress: () => '203.0.113.9' });
     const env = createEnv({ RATE_LIMIT_PER_MINUTE: '3' });
     for (let i = 0; i < 3; i++) {
       const res = await h(request('/webhook', await signedInit(PUSH)), env);
-      expect(res.status).toBe(202);
+      expect(res.status).toBe(401);
     }
     expect(verify).toHaveBeenCalledTimes(3);
 
@@ -425,6 +425,23 @@ describe('gate 1: the rate limiter', () => {
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get('retry-after'))).toBeGreaterThanOrEqual(1);
     expect(verify).toHaveBeenCalledTimes(3);
+  });
+
+  it('never limits verified deliveries, however many one address sends', async () => {
+    const h = handler({ verify: async () => true, now: clock().now, socketAddress: () => '140.82.115.1' });
+    const env = createEnv({ RATE_LIMIT_PER_MINUTE: '2' });
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i++) statuses.push((await h(request('/webhook', await signedInit(PUSH)), env)).status);
+    expect(statuses).toEqual([202, 202, 202, 202, 202]);
+  });
+
+  it('shares one bucket across every address in an IPv6 /64', async () => {
+    let peer = 2;
+    const h = handler({ verify: async () => false, now: clock().now, socketAddress: () => `2001:db8:1:2::${peer++}` });
+    const env = createEnv({ RATE_LIMIT_PER_MINUTE: '2' });
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i++) statuses.push((await h(request('/webhook', await signedInit(PUSH)), env)).status);
+    expect(statuses).toEqual([401, 401, 429]);
   });
 
   it('caps a flood spread across a thousand forged addresses at the global bucket', async () => {
@@ -464,14 +481,14 @@ describe('gate 1: the rate limiter', () => {
 
   it('a forged X-Forwarded-For cannot mint a fresh bucket at TRUSTED_PROXY_HOPS=0', async () => {
     const c = clock();
-    const h = handler({ log: recorder().log, now: c.now, socketAddress: () => '203.0.113.7' });
+    const h = handler({ verify: async () => false, log: recorder().log, now: c.now, socketAddress: () => '203.0.113.7' });
     const env = createEnv({ RATE_LIMIT_PER_MINUTE: '2', TRUSTED_PROXY_HOPS: '0' });
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) {
       const init = await signedInit(PUSH, { 'x-forwarded-for': `1.2.3.${i}` });
       statuses.push((await h(request('/webhook', init), env)).status);
     }
-    expect(statuses).toEqual([202, 202, 429, 429]);
+    expect(statuses).toEqual([401, 401, 429, 429]);
   });
 });
 
@@ -537,6 +554,52 @@ describe('resolveClientIp', () => {
       socketAddress: '::ffff:127.0.0.1',
     });
     expect(ip).toBe('2.2.2.2');
+  });
+
+  it.each(['100.64.0.1', '100.127.255.254', '169.254.1.1', 'fe80::1', 'fd12:3456::1', 'fc00::1', '::ffff:100.64.3.4'])(
+    'treats %s as a private proxy peer',
+    (socketAddress) => {
+      const ip = resolveClientIp(headers({ 'x-forwarded-for': '2.2.2.2' }), {
+        target: 'node',
+        trustedProxyHops: 1,
+        socketAddress,
+      });
+      expect(ip).toBe('2.2.2.2');
+    },
+  );
+
+  it.each(['100.128.0.1', '100.63.0.1', 'fec0::1', 'fdomain.example', '2001:db8::1'])(
+    'treats %s as a public peer',
+    (socketAddress) => {
+      const ip = resolveClientIp(headers({ 'x-forwarded-for': '2.2.2.2' }), {
+        target: 'node',
+        trustedProxyHops: 1,
+        socketAddress,
+      });
+      expect(ip).toBe(socketAddress);
+    },
+  );
+
+  it('writes one xff_hops_mismatch line per window, not one per request', () => {
+    const { log, lines } = recorder();
+    for (let i = 0; i < 5; i++) {
+      resolveClientIp(headers({}), { target: 'node', trustedProxyHops: 1, socketAddress: '203.0.113.50', log });
+    }
+    expect(lines).toHaveLength(1);
+  });
+});
+
+describe('rateLimitKey', () => {
+  it.each([
+    ['203.0.113.7', '203.0.113.7'],
+    ['2001:db8:1:2:aaaa::1', '2001:db8:1:2::/64'],
+    ['2001:0DB8:0001:0002:ffff:ffff:ffff:ffff', '2001:db8:1:2::/64'],
+    ['2001:db8::1', '2001:db8:0:0::/64'],
+    ['fe80::1%eth0', 'fe80:0:0:0::/64'],
+    ['::ffff:203.0.113.7', '203.0.113.7'],
+    ['unknown', 'unknown'],
+  ])('keys %s as %s', (ip, key) => {
+    expect(rateLimitKey(ip)).toBe(key);
   });
 });
 
@@ -615,11 +678,13 @@ describe('authentication logging', () => {
 
   it('logs rate_limited with the resolved client IP, and webhook_body_too_large on the cap', async () => {
     const { log, lines } = recorder();
-    const h = handler({ log, now: clock().now, socketAddress: () => '203.0.113.13' });
+    const h = handler({ verify: async () => false, log, now: clock().now, socketAddress: () => '203.0.113.13' });
     const env = createEnv({ RATE_LIMIT_PER_MINUTE: '1' });
     await h(request('/webhook', await signedInit(PUSH)), env);
     await h(request('/webhook', await signedInit(PUSH)), env);
     expect(lines.find((l) => l.event === 'rate_limited')?.fields).toMatchObject({ ip: '203.0.113.13' });
+    await h(request('/webhook', await signedInit(PUSH)), env);
+    expect(lines.filter((l) => l.event === 'rate_limited')).toHaveLength(1);
 
     const { log: log2, lines: lines2 } = recorder();
     await handler({ log: log2 })(
@@ -863,7 +928,7 @@ describe('per-route webhookSecretEnv', () => {
     });
   });
 
-  it('accepts a delivery when the route secret equals the global secret', async () => {
+  it('refuses to serve when the route secret equals the global secret', async () => {
     const env = createEnv({
       ROUTES: JSON.stringify({
         routes: [{ repo: 'your-org/*', webhookSecretEnv: 'GITHUB_WEBHOOK_SECRET_ORGA' }],
@@ -873,8 +938,9 @@ describe('per-route webhookSecretEnv', () => {
     const { jobs, tier } = recorder_tier();
     const init = await signedInit(PUSH, { 'x-hub-signature-256': await sign(PUSH, HARNESS_SECRET) });
     const res = await handlerWith(tier)(request('/webhook', init), env);
-    expect(res.status).toBe(202);
-    expect(jobs).toHaveLength(1);
+    // One signature would verify under both names, so boot rejects the config.
+    expect(res.status).toBe(503);
+    expect(jobs).toHaveLength(0);
   });
 });
 
@@ -1073,5 +1139,22 @@ describe('pull request events', () => {
 describe('pathnameOf', () => {
   it('returns null for an unparseable URL host', () => {
     expect(pathnameOf('http://1.2.3.999/webhook')).toBeNull();
+  });
+});
+
+describe('GET /health/detail logging', () => {
+  it('logs health_detail_unauthorized once per window under a guessing flood', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const env = createEnv({ HEALTH_TOKEN: '0123456789abcdef0123456789abcdef' });
+      for (let i = 0; i < 5; i++) {
+        const res = await app.request('/health/detail', { headers: { 'x-health-token': `guess-${i}` } }, env);
+        expect(res.status).toBe(401);
+      }
+      const events = spy.mock.calls.map((call) => String(call[0])).filter((l) => l.includes('health_detail_unauthorized'));
+      expect(events).toHaveLength(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -37,6 +37,13 @@ export interface DrainReport {
   jobs: number;
 }
 
+/** What is still queued, readable synchronously so a crash can log it before exiting. */
+export interface QueueSnapshot {
+  jobs: number;
+  shas: string[];
+  deliveryIds: string[];
+}
+
 interface Entry {
   job: RelayJob;
   bytes: number;
@@ -115,12 +122,24 @@ export class MemoryFifoTier implements AsyncTier {
     return {
       posted: this.posted - postedBefore,
       dropped: this.dropped - droppedBefore,
-      // Only a push names shas; a pull request job is reported by the count.
-      remaining: this.entries.flatMap((entry) =>
-        entry.job.type === 'push' ? entry.job.commits.map((commit) => commit.id) : [],
-      ),
+      remaining: this.remainingShas(),
       jobs: this.entries.length,
     };
+  }
+
+  snapshot(): QueueSnapshot {
+    return {
+      jobs: this.entries.length,
+      shas: this.remainingShas(),
+      deliveryIds: this.entries.map((entry) => entry.job.deliveryId),
+    };
+  }
+
+  /** Only a push names shas; a pull request job is reported by the count. */
+  private remainingShas(): string[] {
+    return this.entries.flatMap((entry) =>
+      entry.job.type === 'push' ? entry.job.commits.map((commit) => commit.id) : [],
+    );
   }
 
   /** The pump starts on the next scheduler turn, never inside `enqueue`, so the

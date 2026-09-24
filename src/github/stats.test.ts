@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LogFn, LogLevel } from '../obs/log.ts';
+import { resetThrottle, type LogFn, type LogLevel } from '../obs/log.ts';
 import { fetchCommitStats, type StatsDeps, type StatsRequest } from './stats.ts';
 import { resolveStatsMode, requireLineStatsViolated } from './token.ts';
 import { commitUrl, isValidSegment, isValidSha, splitFullName } from './url.ts';
@@ -152,6 +152,21 @@ describe('fetchCommitStats', () => {
     expect(call?.headers.has('authorization')).toBe(false);
   });
 
+  it('never follows a redirect with the token, and treats a 3xx as unavailable stats', async () => {
+    const inits: RequestInit[] = [];
+    const h = harness(() => new Response(null, { status: 301, headers: { location: 'https://evil.invalid/' } }));
+    const fetchImpl = h.deps.fetchImpl;
+    h.deps.fetchImpl = ((input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      inits.push(init ?? {});
+      return fetchImpl(input, init);
+    }) as typeof fetch;
+    const out = await fetchCommitStats(request({ token: 'ghp_x' }), h.deps);
+    expect(out).toEqual({ stats: null });
+    expect(inits).toHaveLength(1);
+    expect(inits[0]?.redirect).toBe('manual');
+    expect(warns(h.logs).map((l) => l.evt)).toEqual(['stats_fetch_failed']);
+  });
+
   it('sends Bearer only when a token resolves', async () => {
     const h = harness(() => json(single));
     await fetchCommitStats(request({ token: 'route-token' }), h.deps);
@@ -206,6 +221,24 @@ describe('fetchCommitStats', () => {
     const h = harness(() => json({ message: 'Bad credentials' }, 401));
     await expect(fetchCommitStats(request({ token: 'bad' }), h.deps)).resolves.toEqual({ stats: null });
     expect(warns(h.logs).map((l) => l.evt)).toEqual(['stats_unavailable']);
+  });
+
+  it('logs one github_token_rejected error per repo per hour when a sent token gets 401', async () => {
+    resetThrottle();
+    const h = harness(() => json({ message: 'Bad credentials' }, 401));
+    await fetchCommitStats(request({ token: 'bad' }), h.deps);
+    await fetchCommitStats(request({ token: 'bad' }), h.deps);
+    const errors = h.logs.filter((l) => l.level === 'error');
+    expect(errors.map((l) => l.evt)).toEqual(['github_token_rejected']);
+    expect(errors[0]?.fields['repo']).toBe('your-org/your-repo');
+    expect(JSON.stringify(errors)).not.toContain('bad');
+  });
+
+  it('does not log github_token_rejected when no token was sent', async () => {
+    resetThrottle();
+    const h = harness(() => json({ message: 'Requires authentication' }, 401));
+    await fetchCommitStats(request(), h.deps);
+    expect(h.logs.some((l) => l.level === 'error')).toBe(false);
   });
 
   it('reports a permission 403 with X-Accepted-GitHub-Permissions', async () => {

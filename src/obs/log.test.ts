@@ -7,6 +7,7 @@ import {
   payloadLoggingFields,
   payloadsEnabled,
   resetThrottle,
+  THROTTLE_MAX_KEYS,
   throttled,
   warnPayloadLogging,
 } from './log.ts';
@@ -254,6 +255,17 @@ describe('throttled', () => {
     expect(throttled('auth:your-org/your-repo', hour, hour)).toBe(true);
     resetThrottle();
     expect(throttled('auth:your-org/your-repo', hour, hour)).toBe(true);
+  });
+
+  it('evicts the oldest key once the cap is reached', () => {
+    resetThrottle();
+    const hour = 3_600_000;
+    for (let i = 0; i < THROTTLE_MAX_KEYS; i++) throttled(`k${i}`, hour, 0);
+    expect(throttled('k1', hour, 1)).toBe(false);
+    expect(throttled('overflow', hour, 1)).toBe(true);
+    expect(throttled('k0', hour, 1)).toBe(true);
+    expect(throttled('k2', hour, 1)).toBe(false);
+    resetThrottle();
   });
 });
 

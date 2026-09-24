@@ -22,8 +22,9 @@ services:
     # compromised runtime cannot rewrite dist/. /tmp is the only writable path.
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:noexec,nosuid
     mem_limit: 512m
+    pids_limit: 256
     healthcheck:
       test:
         - CMD

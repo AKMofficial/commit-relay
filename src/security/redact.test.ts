@@ -141,4 +141,19 @@ describe('redactOutbound', () => {
     expect(redactOutbound('sig sha256=' + 'f'.repeat(64))).toContain('sha256=***');
     expect(redactOutbound('https://user:pw@example.com/x')).toContain('://***@');
   });
+
+  it('masks a lowercase bearer value', () => {
+    expect(redactOutbound('bearer ' + 'x'.repeat(20))).toBe('Bearer ***');
+  });
+});
+
+describe('redactText credential shapes', () => {
+  it('masks Basic auth, query-string credentials, sha1 digests and JWTs', () => {
+    expect(redactText('Authorization: Basic dXNlcjpwYXNzd29yZA==')).toBe('Authorization: Basic ***');
+    expect(redactText('GET /x?access_token=abc123&page=2')).toBe('GET /x?access_token=***&page=2');
+    expect(redactText('GET /x?a=1&key=zzz')).toBe('GET /x?a=1&key=***');
+    expect(redactText('sig sha1=' + 'a'.repeat(40))).toBe('sig sha1=***');
+    expect(redactText('jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.sig_part')).toBe('jwt ***');
+    expect(redactText('ghs_' + 'c'.repeat(36))).toBe('***');
+  });
 });

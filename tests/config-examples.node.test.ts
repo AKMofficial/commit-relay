@@ -56,6 +56,27 @@ describe('config.example.json', () => {
   });
 });
 
+describe('docs/node-setup.md', () => {
+  it('quotes the schema default for every key it gives a default for', () => {
+    const text = readFileSync(new URL('../docs/node-setup.md', import.meta.url), 'utf8');
+    const quoted = [...text.matchAll(/^\| `([A-Z0-9_]+)` \| no \| Default `([^`]*)`/gm)];
+    expect(quoted.length).toBeGreaterThan(0);
+    const result = loadConfig({
+      GITHUB_WEBHOOK_SECRET: 'docs-default-check-secret-000000000000',
+      BASECAMP_ACCOUNT_ID: '1234567',
+      BASECAMP_CHATBOT_KEY: 'chatbot-key-value',
+      BASECAMP_BUCKET_ID: '2345678',
+      BASECAMP_CHAT_ID: '7654321',
+    });
+    if (!result.ok) throw new Error('expected the minimal config to load');
+    const config = result.config as unknown as Record<string, unknown>;
+    for (const [, key, value] of quoted) {
+      const actual = config[key as string];
+      expect(Array.isArray(actual) ? actual.join(',') : String(actual), key).toBe(value);
+    }
+  });
+});
+
 describe('README.md', () => {
   it('documents exactly the schema keys in its Configuration table', () => {
     const text = readFileSync(new URL('../README.md', import.meta.url), 'utf8');

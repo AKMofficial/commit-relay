@@ -14,6 +14,15 @@ describe('sanitizeText', () => {
     expect(sanitizeText('a\tb')).toBe('ab');
   });
 
+  it('strips invisible fillers, variation selectors and the braille blank', () => {
+    const blank = cp(0x115f, 0x1160, 0x3164, 0xffa0, 0x2800, 0x034f, 0xfe0f, 0xfe00, 0xe0100, 0x180e);
+    expect(sanitizeText(`main${blank}`)).toBe('main');
+  });
+
+  it('maps the line and paragraph separators to LF', () => {
+    expect(sanitizeText(`a${cp(0x2028)}b${cp(0x2029)}c`)).toBe('a\nb\nc');
+  });
+
   it('strips C1 controls', () => {
     expect(sanitizeText(`a${cp(0x80, 0x85, 0x9f)}b`)).toBe('ab');
   });

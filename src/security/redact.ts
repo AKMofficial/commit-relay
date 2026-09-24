@@ -7,6 +7,8 @@ const CREDENTIAL_SHAPES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bgh[pousr]_[A-Za-z0-9]{16,}\b/g, '***'],          // classic GitHub token shapes
   [/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, '***'],        // fine-grained PAT shape
   [/\bsha256=[0-9a-f]{64}\b/g, 'sha256=***'],          // never echo a supplied or computed digest
+  [/\bsha1=[0-9a-f]{40}\b/g, 'sha1=***'],              // legacy X-Hub-Signature digest
+  [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g, '***'], // JWT
 ];
 
 /**
@@ -18,6 +20,8 @@ const SHAPES: ReadonlyArray<readonly [RegExp, string]> = [
   [/\/integrations\/[^/\s"']+/g, '/integrations/***'], // the Basecamp chatbot key, by position
   ...CREDENTIAL_SHAPES,
   [/\b(Bearer|token)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 ***'],
+  [/\b(Basic)\s+[A-Za-z0-9+/=]{8,}/gi, '$1 ***'],
+  [/([?&](?:access_token|token|key|secret|sig)=)[^&\s"']+/gi, '$1***'],
 ];
 
 let literals: readonly string[] = [];
@@ -72,7 +76,7 @@ const OUTBOUND_SHAPES: ReadonlyArray<readonly [RegExp, string]> = [
     '$1***',
   ],
   ...CREDENTIAL_SHAPES,
-  [/\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/g, 'Bearer ***'],
+  [/\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/gi, 'Bearer ***'],
 ];
 
 /** Applied to the assembled Basecamp `content` before it is posted. Tuned for

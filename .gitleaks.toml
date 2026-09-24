@@ -27,11 +27,9 @@ keywords = ["secret"]
 
 [allowlist]
 description = "Sanctioned placeholders and offline test fixtures"
+# Tests are scanned like everything else, so a real credential pasted into a
+# fixture still fails CI. Only the invented values below are exempt.
 paths = [
-  # The test tree. Unit tests live beside the source they cover, so a `.test.ts`
-  # anywhere is test data; every credential in it is invented for an assertion.
-  '''(^|/)tests/''',
-  '''\.test\.ts$''',
   '''(^|/)pnpm-lock\.yaml$''',
   '''(^|/)SPEC\.md$''',
 ]
@@ -51,4 +49,12 @@ regexes = [
   '''\b(1234567|2345678|7654321)\b''',
   '''jane(-doe|@example\.com)''',
   '''sam(-lee|@example\.com)''',
+  # Invented credentials the unit tests assert against. Exact values only.
+  '''EXAMPLEKEY0123456789ABCD''',
+  '''AbCdEfGhIjKlMnOpQrStUvWx''',
+  '''never-registered-key''',
+  '''ghp_0123456789abcdefghij''',
+  '''0123456789abcdef0123456789abcdef''',
+  '''a7c1e9d3b5f70826c4a1e9d3b5f70826''',
+  '''f3a91c07be24d85a6f0b1c72e94d3a58''',
 ]
