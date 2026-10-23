@@ -13,6 +13,8 @@ engineStrict: true
 
 # GHSA-g89c-p67h-r497 (libheif), transitive via miniflare
 # GHSA-587h-7wmj-h5pm and four more, transitive via vitest
+# GHSA-mrhx-c7xc-m3w5, @cloudflare/vitest-plugin pins zod 4.6.5
 overrides:
   sharp: ">=0.35.4"
   vite: ">=7.3.7 <8"
+  zod: ">=4.6.6 <5"
