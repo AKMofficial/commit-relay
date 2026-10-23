@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-23
+
+### Security
+
+- The container image runs Node 24.22.1 (from 24.21.0), which carries the Node.js
+  October 2026 security release: four high-severity fixes covering TLS server
+  identity checks for non-canonical IP hosts, a Brotli decoder overflow, and DNS
+  name truncation at a NUL byte. The Workers target does not run Node and is
+  unaffected.
+
 ## [0.1.0] - 2026-10-16
 
 First public release.
@@ -106,5 +116,6 @@ What counts as a breaking change, so nobody has to guess:
 | The rendered table's row order or layout | **Minor**: it is output, not API. |
 | A default value changing | **Minor**, and always called out under `Changed`. |
 
-[Unreleased]: https://github.com/AKMofficial/commit-relay/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AKMofficial/commit-relay/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/AKMofficial/commit-relay/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AKMofficial/commit-relay/releases/tag/v0.1.0

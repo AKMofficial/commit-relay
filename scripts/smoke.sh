@@ -59,7 +59,7 @@ docker run -d --name "$MOCK" \
   --network "container:${APP}" \
   -v "${REPO_ROOT}/scripts:/repo/scripts:ro" \
   -v "${REPO_ROOT}/src:/repo/src:ro" \
-  node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 node /repo/scripts/mock-basecamp.ts >/dev/null
+  node:24-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 node /repo/scripts/mock-basecamp.ts >/dev/null
 
 # The only assertions below (healthz, 401) never reach Basecamp, so a mock that
 # died on startup would go unnoticed and the run would still report PASS.

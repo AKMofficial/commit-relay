@@ -12,5 +12,7 @@ strictDepBuilds: true
 engineStrict: true
 
 # GHSA-g89c-p67h-r497 (libheif), transitive via miniflare
+# GHSA-587h-7wmj-h5pm and four more, transitive via vitest
 overrides:
   sharp: ">=0.35.4"
+  vite: ">=7.3.7 <8"
