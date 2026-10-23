@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ## [Unreleased]
 
+### Security
+
+- zod 4.6.7 (from 4.6.5) for GHSA-mrhx-c7xc-m3w5, memory exhaustion while
+  validating oversized arrays. Exposure was limited: webhook payloads reach zod
+  only after HMAC verification, and every payload array has a `.max()` cap.
+
 ## [0.1.1] - 2026-10-23
 
 ### Security
