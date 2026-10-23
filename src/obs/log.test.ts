@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import pkg from '../../package.json' with { type: 'json' };
 import { registerSecrets } from '../security/redact.ts';
 import {
   createLogger,
@@ -38,7 +39,7 @@ describe('createLogger', () => {
     expect(parsed.lvl).toBe('info');
     expect(parsed.evt).toBe('message_posted');
     expect(parsed.svc).toBe('commit-relay');
-    expect(parsed.ver).toBe('0.1.0');
+    expect(parsed.ver).toBe(pkg.version);
     expect(parsed.tgt).toBe('workers');
     expect(parsed.repo).toBe('your-org/your-repo');
     expect(parsed.seq).toBe(0);
@@ -105,7 +106,7 @@ describe('createLogger', () => {
       lvl: 'info',
       evt: 'message_posted',
       svc: 'commit-relay',
-      ver: '0.1.0',
+      ver: pkg.version,
       tgt: 'node',
       delivery: '6f1a',
       repo: 'your-org/your-repo',
