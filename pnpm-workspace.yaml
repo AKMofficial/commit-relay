@@ -20,3 +20,11 @@ overrides:
   undici: ">=7.30.1 <8"
   vite: ">=7.3.7 <8"
   zod: ">=4.6.6 <5"
+
+# GHSA-fc5q-39xc-vjpf (picomatch <= 4.0.7, ReDoS on repeated extglobs): no patched
+# release exists yet. Dev-only here, via tinyglobby under vite, vitest and
+# typescript-eslint, and it only ever matches this repo's own glob patterns.
+# Remove this once picomatch ships a fix and the lockfile carries it.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
