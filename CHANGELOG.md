@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-17
+
 ### Security
 
+- hono 4.13.16 (from 4.13.13), which fixes five advisories. Four are in features
+  commit-relay does not use (`csrf()`, `mount()`, the `css` helper,
+  `validator('form')`). The fifth, GHSA-h7mg-cq63-vhpq, is in the default router:
+  a path holding an encoded line terminator skipped wildcard routes. Here that
+  request already ended in the bodiless 404 and never reached the webhook handler.
+- @hono/node-server 2.1.6 (from 2.1.5), Node and Docker targets only. A request
+  path with a raw backslash is now refused with 400 rather than read as `/`
+  (GHSA-jpvv-r467-5p4w), which matters when a reverse proxy in front of
+  commit-relay blocks paths such as `/health/detail`. GHSA-qv5m-9pm6-hqp3 needs
+  WebSocket support, which commit-relay does not enable.
 - zod 4.6.7 (from 4.6.5) for GHSA-mrhx-c7xc-m3w5, memory exhaustion while
   validating oversized arrays. Exposure was limited: webhook payloads reach zod
   only after HMAC verification, and every payload array has a `.max()` cap.
@@ -122,6 +134,7 @@ What counts as a breaking change, so nobody has to guess:
 | The rendered table's row order or layout | **Minor**: it is output, not API. |
 | A default value changing | **Minor**, and always called out under `Changed`. |
 
-[Unreleased]: https://github.com/AKMofficial/commit-relay/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/AKMofficial/commit-relay/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/AKMofficial/commit-relay/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AKMofficial/commit-relay/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AKMofficial/commit-relay/releases/tag/v0.1.0

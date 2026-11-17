@@ -1,6 +1,6 @@
 {
   "name": "commit-relay",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Self-hosted webhook receiver that posts one Basecamp Campfire chat line per GitHub commit. Not affiliated with, endorsed by, or sponsored by 37signals, LLC. Basecamp\u00ae and Campfire\u00ae are trademarks of 37signals, LLC. This project is an independent, unofficial integration.",
